@@ -1,0 +1,26 @@
+version: "3.7"
+
+services:
+    phoenix_api_toolkit:
+        build:
+            context: .
+            dockerfile: docker/dev.dockerfile
+        working_dir: /application
+        # The top mount mounts the local source code into the container for compilation and running.
+        # The other mounts effectively function as exclusions on the top mount, to prevent build artifacts from being created locally (as root).
+        # Some of the other mounts are mapped to docker volumes to improve build-on-build performance by caching the build artifacts.
+        # To completely clean the volumes, execute `docker-compose down -v` in a shell. A subsequent `docker-compose up` will run in a fresh environment.
+        volumes:
+            - .:/application:cached
+            - /application/.elixir_ls
+            - _build:/application/_build
+            - deps:/application/deps
+            - mix:/root/.mix
+        environment:            
+            MIX_ENV: dev
+        command: /bin/sh /application/docker/cmd.sh
+
+volumes:
+    _build:
+    deps:
+    mix:

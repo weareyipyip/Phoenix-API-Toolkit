@@ -1,0 +1,42 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "(Docker) IEx",
+            "type": "shell",
+            "command": "docker-compose exec phoenix_api_toolkit",
+        },
+        {
+            "label": "(Docker) Test in running instance",
+            "type": "shell",
+            "command": "docker-compose exec phoenix_api_toolkit mix test",
+            "group": "test",
+        },
+        {
+            "label": "(Docker) Test",
+            "type": "shell",
+            "command": "docker-compose run --rm phoenix_api_toolkit mix do deps.get, test",
+            "group": "test",
+        },
+        {
+            "label": "(Local) IEx",
+            "type": "shell",
+            "command": "iex -S mix",
+            "group": {
+                "kind": "build",
+                "isDefault": true,
+            },
+        },
+        {
+            "label": "(Local) Test",
+            "type": "shell",
+            "command": "mix test",
+            "group": {
+                "kind": "test",
+                "isDefault": true,
+            },
+        },
+    ]
+}

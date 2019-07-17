@@ -1,0 +1,6 @@
+{
+    "files.exclude": {
+        "deps/**": true,
+        "_build/**": true,
+    }
+}
