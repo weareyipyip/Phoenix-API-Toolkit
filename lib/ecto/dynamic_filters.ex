@@ -153,9 +153,9 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
     - `main_binding`: the named binding of the Ecto model that generic queries are applied to
     - `literals`: fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.equals/4`
     - `sets`: fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.member_of/4`
-    - `smaller_than_map`: map of virtual "_before" fields and the actual fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.smaller_than/4`
+    - `smaller_than_map`: map of virtual "smaller_than_" fields and the actual fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.smaller_than/4`
     - `smaller_than`: keys of `smaller_than_map`
-    - `greater_than_or_equals_map`: map of virtual "_at_or_after" fields and the actual fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.greater_than_or_equals/4`
+    - `greater_than_or_equals_map`: map of virtual "greater_than_or_equals_" fields and the actual fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.greater_than_or_equals/4`
     - `greater_than_or_equals`: keys of `greater_than_or_equals_map`
   """
   defmacro standard_filters(
@@ -222,9 +222,9 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
     - `@main_binding`: the named binding of the Ecto model that generic queries are applied to
     - `@literals`: fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.equals/4`
     - `@sets`: fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.member_of/4`
-    - `@smaller_than_map`: map of virtual "_before" fields and the actual fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.smaller_than/4`
+    - `@smaller_than_map`: map of virtual "smaller_than_" fields and the actual fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.smaller_than/4`
     - `@smaller_than`: keys of `@smaller_than_map`
-    - `@greater_than_or_equals_map`: map of virtual "_at_or_after" fields and the actual fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.greater_than_or_equals/4`
+    - `@greater_than_or_equals_map`: map of virtual "greater_than_or_equals_" fields and the actual fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.greater_than_or_equals/4`
     - `@greater_than_or_equals`: keys of `@greater_than_or_equals_map`
 
   If these module attributes cannot be used, please use the fully parameterized version of this
