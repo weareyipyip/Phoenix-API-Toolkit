@@ -12,7 +12,6 @@ defmodule PhoenixApiToolkit.MixProject do
       Library with helper modules for developing an API with Phoenix.
       """,
       package: [
-        organization: "yipyip",
         licenses: ["apache-2.0"],
         links: %{github: "https://github.com/weareyipyip/Phoenix-API-Toolkit"},
         source_url: "https://github.com/weareyipyip/Phoenix-API-Toolkit"
@@ -30,7 +29,8 @@ defmodule PhoenixApiToolkit.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:ex_doc, "~> 0.21", only: :dev, runtime: false}
+      {:ex_doc, "~> 0.21", only: :dev, runtime: false},
+      {:ecto, "~> 3.0"}
     ]
   end
 end
