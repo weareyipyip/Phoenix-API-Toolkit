@@ -1,32 +1,20 @@
-workflow "CI/CD" {
+workflow "Automated testing" {
   on = "push"
-  resolves = ["Test"]
+  resolves = ["test"]
 }
 
-action "Test" {
+action "test" {
   uses = "docker://elixir:1.9-alpine"
   runs = [".github/ci/entrypoint.sh"]
 }
 
-workflow "Publish" {
+workflow "Publish on release" {
   on = "release"
   resolves = ["publish"]
 }
 
-action "master-branch-only" {
-  args = "branch master"
-  uses = "actions/bin/filter@master"
-}
-
-action "tags-only" {
-  args = "tag v*"
-  needs = "master-branch-only"
-  uses = "actions/bin/filter@master"
-}
-
 action "admins-only" {
   args = ["actor", "juulSme", "TimPelgrim", "EvertVerboven"]
-  needs = "tags-only"
   uses = "actions/bin/filter@master"
 }
 
