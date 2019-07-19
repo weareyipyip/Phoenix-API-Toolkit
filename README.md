@@ -1,10 +1,10 @@
 # PhoenixApiToolkit
 
-**TODO: Add description**
+Collection of helpers and utilities to aid in creating an API using Elixir and Phoenix.
 
 ## Installation
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
+The package can be installed
 by adding `phoenix_api_toolkit` to your list of dependencies in `mix.exs`:
 
 ```elixir
@@ -15,7 +15,6 @@ def deps do
 end
 ```
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/phoenix_api_toolkit](https://hexdocs.pm/phoenix_api_toolkit).
+## Documentation
 
+Documentation is available on [HexDocs](https://hexdocs.pm/phoenix_api_toolkit/)
