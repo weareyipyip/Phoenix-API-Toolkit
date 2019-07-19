@@ -13,14 +13,20 @@ workflow "Publish on release" {
   resolves = ["publish"]
 }
 
-action "admins-only" {
-  args = ["actor", "juulSme", "TimPelgrim", "EvertVerboven"]
+action "published-release-only" {
   uses = "actions/bin/filter@master"
+  args = "action 'published'"
+}
+
+action "admins-only" {
+  needs = "published-release-only"
+  uses = "actions/bin/filter@master"
+  args = ["actor", "juulSme", "TimPelgrim", "EvertVerboven"]
 }
 
 action "publish" {
-  uses = "docker://elixir:1.9-alpine"
   needs = "admins-only"
+  uses = "docker://elixir:1.9-alpine"
   runs = [".github/cd/entrypoint.sh"]
   secrets = ["HEX_API_KEY"]
 }
