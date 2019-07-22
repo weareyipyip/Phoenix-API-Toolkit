@@ -54,12 +54,10 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
         inserted_before: :inserted_at,
         updated_before: :updated_at
       }
-      @smaller_than Map.keys(@smaller_than_map)
       @greater_than_or_equals_map %{
         inserted_at_or_after: :inserted_at,
         updated_at_or_after: :updated_at
       }
-      @greater_than_or_equals Map.keys(@greater_than_or_equals_map)
 
       def by_username_prefix(query, prefix) do
         from(user in query, where: ilike(user.username, ^"\#{prefix}%"))
@@ -78,7 +76,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
       iex> list_with_standard_filters_and_attributes()
       #Ecto.Query<from u0 in "users", as: :user>
 
-      # filtering works the same way
+      # let's do some filtering
       iex> list_with_standard_filters_and_attributes(%{username: "Peter", inserted_before: DateTime.from_unix!(155555555)})
       #Ecto.Query<from u0 in "users", as: :user, where: u0.inserted_at < ^~U[1974-12-06 09:52:35Z], where: u0.username == ^"Peter">
 
@@ -86,7 +84,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
       iex> list_with_standard_filters_and_attributes(%{limit: 10, offset: 1, order_by: {:username, :desc}})
       #Ecto.Query<from u0 in "users", as: :user, order_by: [desc: u0.username], limit: ^10, offset: ^1>
 
-      # complex custom filters can be user too
+      # complex custom filters can be combined with the standard filters
       iex> list_with_standard_filters_and_attributes(%{username_prefix: "Pete"})
       #Ecto.Query<from u0 in "users", as: :user, where: ilike(u0.username, ^"Pete%")>
 
@@ -110,9 +108,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
               [:username],
               [:roles],
               @smaller_than_map,
-              @smaller_than,
-              @greater_than_or_equals_map,
-              @greater_than_or_equals
+              @greater_than_or_equals_map
             )
         end)
       end
@@ -121,7 +117,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
       iex> list_with_standard_filters()
       #Ecto.Query<from u0 in "users", as: :user>
 
-      # filtering works the same way
+      # let's do some filtering
       iex> list_with_standard_filters(%{username: "Peter"})
       #Ecto.Query<from u0 in "users", as: :user, where: u0.username == ^"Peter">
   """
@@ -133,7 +129,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
   Applies `filters` to `query` by reducing `filters` using `filter_reductor`.
   Combine with the generic queries from `PhoenixApiToolkit.Ecto.GenericQueries` to write complex
   filterables. Several standard filters have been implemented in
-  `standard_filters/2` and `standard_filters/9`.
+  `standard_filters/2` and `standard_filters/7`.
 
   See the module docs `#{__MODULE__}` for details and examples.
   """
@@ -143,7 +139,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
   end
 
   @doc """
-  Applies standard filters to the query. See `apply_filters/3` for an example. Standard
+  Applies standard filters to the query. Standard
   filters include filters for literal matches, datetime relatives, set membership,
   ordering and pagination.
 
@@ -165,10 +161,13 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
              literals,
              sets,
              smaller_than_map,
-             smaller_than,
-             greater_than_or_equals_map,
-             greater_than_or_equals
+             greater_than_or_equals_map
            ) do
+    {:%{}, _, my_map_as_keyword_list} = smaller_than_map |> Macro.expand(__CALLER__)
+    smaller_than_fields = Keyword.keys(my_map_as_keyword_list)
+    {:%{}, _, my_map_as_keyword_list} = greater_than_or_equals_map |> Macro.expand(__CALLER__)
+    greater_than_or_equals_fields = Keyword.keys(my_map_as_keyword_list)
+
     quote generated: true do
       query = unquote(query)
       main_binding = unquote(main_binding)
@@ -189,7 +188,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
         {field, value} when field in unquote(sets) ->
           GenericQueries.member_of(query, main_binding, field, value)
 
-        {field, value} when field in unquote(smaller_than) ->
+        {field, value} when field in unquote(smaller_than_fields) ->
           GenericQueries.smaller_than(
             query,
             main_binding,
@@ -197,7 +196,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
             value
           )
 
-        {field, value} when field in unquote(greater_than_or_equals) ->
+        {field, value} when field in unquote(greater_than_or_equals_fields) ->
           GenericQueries.greater_than_or_equals(
             query,
             main_binding,
@@ -212,7 +211,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
   end
 
   @doc """
-  Applies standard filters to the query. See `apply_filters/3` for an example. Standard
+  Applies standard filters to the query. Standard
   filters include filters for literal matches, datetime relatives, set membership,
   ordering and pagination.
 
@@ -223,12 +222,10 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
     - `@literals`: fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.equals/4`
     - `@sets`: fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.member_of/4`
     - `@smaller_than_map`: map of virtual "smaller_than_" fields and the actual fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.smaller_than/4`
-    - `@smaller_than`: keys of `@smaller_than_map`
     - `@greater_than_or_equals_map`: map of virtual "greater_than_or_equals_" fields and the actual fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.greater_than_or_equals/4`
-    - `@greater_than_or_equals`: keys of `@greater_than_or_equals_map`
 
   If these module attributes cannot be used, please use the fully parameterized version of this
-  macro, `standard_filters/9`.
+  macro, `standard_filters/7`.
   """
   defmacro standard_filters(query, filter) do
     quote do
@@ -239,9 +236,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
         @literals,
         @sets,
         @smaller_than_map,
-        @smaller_than,
-        @greater_than_or_equals_map,
-        @greater_than_or_equals
+        @greater_than_or_equals_map
       )
     end
   end

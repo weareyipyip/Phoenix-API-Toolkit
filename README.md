@@ -1,4 +1,4 @@
-# PhoenixApiToolkit
+# Phoenix API Toolkit
 
 Collection of helpers and utilities to aid in creating an API using Elixir and Phoenix.
 

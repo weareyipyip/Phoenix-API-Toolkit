@@ -4,7 +4,7 @@ defmodule PhoenixApiToolkit.Ecto.GenericQueriesTest do
   import PhoenixApiToolkit.Ecto.GenericQueries
   require Ecto.Query
 
-  doctest PhoenixApiToolkit.Ecto.GenericQueries
-
   def base_query(), do: Ecto.Query.from(user in "users", as: :user)
+
+  doctest PhoenixApiToolkit.Ecto.GenericQueries
 end

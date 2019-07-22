@@ -5,8 +5,6 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFiltersTest do
   import PhoenixApiToolkit.Ecto.DynamicFilters
   import Ecto.Query
 
-  doctest PhoenixApiToolkit.Ecto.DynamicFilters
-
   @main_binding :user
   @literals ~w(id username residence address)a
   @sets ~w(roles)a
@@ -14,12 +12,10 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFiltersTest do
     inserted_before: :inserted_at,
     updated_before: :updated_at
   }
-  @smaller_than Map.keys(@smaller_than_map)
   @greater_than_or_equals_map %{
     inserted_at_or_after: :inserted_at,
     updated_at_or_after: :updated_at
   }
-  @greater_than_or_equals Map.keys(@greater_than_or_equals_map)
 
   def base_query, do: from(user in "users", as: :user)
 
@@ -61,10 +57,10 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFiltersTest do
           [:username],
           [:roles],
           @smaller_than_map,
-          @smaller_than,
-          @greater_than_or_equals_map,
-          @greater_than_or_equals
+          @greater_than_or_equals_map
         )
     end)
   end
+
+  doctest PhoenixApiToolkit.Ecto.DynamicFilters
 end

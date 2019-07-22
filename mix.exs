@@ -15,6 +15,13 @@ defmodule PhoenixApiToolkit.MixProject do
         licenses: ["apache-2.0"],
         links: %{github: "https://github.com/weareyipyip/Phoenix-API-Toolkit"},
         source_url: "https://github.com/weareyipyip/Phoenix-API-Toolkit"
+      ],
+      source_url: "https://github.com/weareyipyip/Phoenix-API-Toolkit",
+      name: "Phoenix API Toolkit",
+      docs: [
+        source_ref: "master",
+        extras: ["./README.md"],
+        main: "readme"
       ]
     ]
   end
