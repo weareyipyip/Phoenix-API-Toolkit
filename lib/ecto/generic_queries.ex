@@ -32,6 +32,10 @@ defmodule PhoenixApiToolkit.Ecto.GenericQueries do
   alias Ecto.Query
   require Ecto.Query
 
+  @typedoc "The directions supported by `order_by/4`"
+  @type order_directions ::
+          :asc | :asc_nulls_first | :asc_nulls_last | :desc | :desc_nulls_first | :desc_nulls_last
+
   @doc """
   Narrow down the query to results in which the value contained in
   `binding.field` is smaller than `value`.
@@ -104,12 +108,7 @@ defmodule PhoenixApiToolkit.Ecto.GenericQueries do
       iex> order_by(base_query(), :user, :name, :asc_nulls_first)
       #Ecto.Query<from u0 in "users", as: :user, order_by: [asc_nulls_first: u0.name]>
   """
-  @spec order_by(
-          Query.t(),
-          atom,
-          atom,
-          :asc | :asc_nulls_first | :asc_nulls_last | :desc | :desc_nulls_first | :desc_nulls_last
-        ) :: Query.t()
+  @spec order_by(Query.t(), atom, atom, order_directions) :: Query.t()
   def order_by(query, binding, field, direction),
     do: Query.from([{^binding, bd}] in query, order_by: [{^direction, field(bd, ^field)}])
 

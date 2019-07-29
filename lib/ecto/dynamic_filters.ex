@@ -42,74 +42,36 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
       iex> list_without_standard_filters(%{number_of_arms: 3})
       #Ecto.Query<from u0 in "users", as: :user>
 
-  ## Example with standard filters with module attributes
+  ## Example with standard filters
 
-  The easiest to use and recommended form of standard filtering is the `standard_filters/2` macro,
-  which reads several module attributes from the module in which it is used to provide its functionality.
+  Standard filters can be applied using the `standard_filters/4` macro. It supports various filtering styles:
+  literal matches, set membership, smaller/greater than comparisons, ordering and pagination. These filters must
+  be configured at compile time.
 
-      @main_binding :user
-      @literals ~w(id username residence address)a
-      @sets ~w(roles)a
-      @smaller_than_map %{
-        inserted_before: :inserted_at,
-        updated_before: :updated_at
-      }
-      @greater_than_or_equals_map %{
-        inserted_at_or_after: :inserted_at,
-        updated_at_or_after: :updated_at
-      }
+
+      @filter_definitions [
+        literals: [:id, :username, :residence, :address],
+        sets: [:roles],
+        smaller_than: [
+          inserted_before: :inserted_at,
+          updated_before: :updated_at
+        ],
+        greater_than_or_equals: [
+          inserted_at_or_after: :inserted_at,
+          updated_at_or_after: :updated_at
+        ]
+      ]
 
       def by_username_prefix(query, prefix) do
         from(user in query, where: ilike(user.username, ^"\#{prefix}%"))
       end
 
-      def list_with_standard_filters_and_attributes(filters \\\\ %{}) do
+      def list_with_standard_filters(filters \\\\ %{}) do
         from(user in "users", as: :user)
         |> apply_filters(filters, fn
           # Add custom filters first and fallback to standard filters
           {:username_prefix, value}, query -> by_username_prefix(query, value)
-          filter, query -> standard_filters(query, filter)
-        end)
-      end
-
-      # filtering is optional
-      iex> list_with_standard_filters_and_attributes()
-      #Ecto.Query<from u0 in "users", as: :user>
-
-      # let's do some filtering
-      iex> list_with_standard_filters_and_attributes(%{username: "Peter", inserted_before: DateTime.from_unix!(155555555)})
-      #Ecto.Query<from u0 in "users", as: :user, where: u0.inserted_at < ^~U[1974-12-06 09:52:35Z], where: u0.username == ^"Peter">
-
-      # limit, offset, and order_by are supported
-      iex> list_with_standard_filters_and_attributes(%{limit: 10, offset: 1, order_by: {:username, :desc}})
-      #Ecto.Query<from u0 in "users", as: :user, order_by: [desc: u0.username], limit: ^10, offset: ^1>
-
-      # complex custom filters can be combined with the standard filters
-      iex> list_with_standard_filters_and_attributes(%{username_prefix: "Pete"})
-      #Ecto.Query<from u0 in "users", as: :user, where: ilike(u0.username, ^"Pete%")>
-
-      # other fields are ignored / passed through
-      iex> list_with_standard_filters_and_attributes(%{number_of_arms: 3, order_by: {:boom, :asc}})
-      #Ecto.Query<from u0 in "users", as: :user>
-
-  ## Example with standard filters
-
-  It is possible to use the standard filters macro without using module attributes,
-  by specifying (some of) the macro parameters directly.
-
-      def list_with_standard_filters(filters \\\\ %{}) do
-        from(user in "users", as: :user)
-        |> apply_filters(filters, fn
-          filter, query ->
-            standard_filters(
-              query,
-              filter,
-              :user,
-              [:username],
-              [:roles],
-              @smaller_than_map,
-              @greater_than_or_equals_map
-            )
+          filter, query -> standard_filters(query, filter, :user, @filter_definitions)
         end)
       end
 
@@ -118,18 +80,32 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
       #Ecto.Query<from u0 in "users", as: :user>
 
       # let's do some filtering
-      iex> list_with_standard_filters(%{username: "Peter"})
-      #Ecto.Query<from u0 in "users", as: :user, where: u0.username == ^"Peter">
+      iex> list_with_standard_filters(%{username: "Peter", inserted_before: DateTime.from_unix!(155555555)})
+      #Ecto.Query<from u0 in "users", as: :user, where: u0.inserted_at < ^~U[1974-12-06 09:52:35Z], where: u0.username == ^"Peter">
+
+      # limit, offset, and order_by are supported
+      iex> list_with_standard_filters(%{limit: 10, offset: 1, order_by: {:address, :desc}})
+      #Ecto.Query<from u0 in "users", as: :user, order_by: [desc: u0.address], limit: ^10, offset: ^1>
+
+      # complex custom filters can be combined with the standard filters
+      iex> list_with_standard_filters(%{username_prefix: "Pete", updated_at_or_after: DateTime.from_unix!(155555555)})
+      #Ecto.Query<from u0 in "users", as: :user, where: u0.updated_at >= ^~U[1974-12-06 09:52:35Z], where: ilike(u0.username, ^"Pete%")>
+
+      # other fields are ignored / passed through
+      iex> list_with_standard_filters(%{number_of_arms: 3, order_by: {:boom, :asc}})
+      #Ecto.Query<from u0 in "users", as: :user>
   """
 
-  alias PhoenixApiToolkit.Ecto.GenericQueries
+  import PhoenixApiToolkit.Ecto.GenericQueries
+
+  @typedoc "Format of a filter that can be applied to a query to narrow it down"
   @type filter :: {atom(), any()}
 
   @doc """
   Applies `filters` to `query` by reducing `filters` using `filter_reductor`.
   Combine with the generic queries from `PhoenixApiToolkit.Ecto.GenericQueries` to write complex
   filterables. Several standard filters have been implemented in
-  `standard_filters/2` and `standard_filters/7`.
+  `standard_filters/4`.
 
   See the module docs `#{__MODULE__}` for details and examples.
   """
@@ -138,106 +114,101 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
     Enum.reduce(filters, query, filter_reductor)
   end
 
+  @typedoc """
+  Filter definitions supported by `standard_filters/4`.
+  A keyword list of filter types and the fields for which they should be generated.
+  """
+  @type filter_definitions :: [
+          literals: [atom],
+          sets: [atom],
+          smaller_than: keyword(atom),
+          greater_than_or_equals: keyword(atom)
+        ]
+
   @doc """
   Applies standard filters to the query. Standard
-  filters include filters for literal matches, datetime relatives, set membership,
+  filters include filters for literal matches, set membership, smaller/greater than comparisons,
   ordering and pagination.
 
   See the module docs `#{__MODULE__}` for details and examples.
 
-  This macro requires the following parameters:
-    - `main_binding`: the named binding of the Ecto model that generic queries are applied to
-    - `literals`: fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.equals/4`
-    - `sets`: fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.member_of/4`
-    - `smaller_than_map`: map of virtual "smaller_than_" fields and the actual fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.smaller_than/4`
-    - `smaller_than`: keys of `smaller_than_map`
-    - `greater_than_or_equals_map`: map of virtual "greater_than_or_equals_" fields and the actual fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.greater_than_or_equals/4`
-    - `greater_than_or_equals`: keys of `greater_than_or_equals_map`
-  """
-  defmacro standard_filters(
-             query,
-             filter,
-             main_binding,
-             literals,
-             sets,
-             smaller_than_map,
-             greater_than_or_equals_map
-           ) do
-    {:%{}, _, my_map_as_keyword_list} = smaller_than_map |> Macro.expand(__CALLER__)
-    smaller_than_fields = Keyword.keys(my_map_as_keyword_list)
-    {:%{}, _, my_map_as_keyword_list} = greater_than_or_equals_map |> Macro.expand(__CALLER__)
-    greater_than_or_equals_fields = Keyword.keys(my_map_as_keyword_list)
+  Mandatory parameters:
+  - `query`: the Ecto query that is narrowed down
+  - `filter`: the current filter that is being applied to `query`
+  - `main_binding`: the named binding of the Ecto model that generic queries are applied to
+  - `filter_definitions`: keyword list of filter types and the fields for which they should be generated
 
+  The options supported by the `filter_definitions` parameter are:
+  - `literals`: fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.equals/4`, also the fields by which the query can be ordered by `PhoenixApiToolkit.Ecto.GenericQueries.order_by/4`
+  - `sets`: fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.member_of/4`
+  - `smaller_than`: keyword list of virtual "smaller_than" fields and the actual fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.smaller_than/4`
+  - `greater_than_or_equals`: keyword list of virtual "greater_than_or_equals" fields and the actual fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.greater_than_or_equals/4`
+  """
+  @spec standard_filters(Query.t(), filter, atom, filter_definitions) :: any
+  defmacro standard_filters(query, filter, main_binding, filter_definitions) do
+    # Call Macro.expand/2 in case filter_definitions is a module attribute
+    filters = filter_definitions |> Macro.expand(__CALLER__)
+
+    # create clauses for the eventual case statement (as raw AST!)
+    clauses =
+      []
+      |> add_clause(quote(do: {:limit, val}), quote(do: limit(query, val)))
+      |> add_clause(quote(do: {:offset, val}), quote(do: offset(query, val)))
+      |> add_clause_for_each(filters[:literals] || [], fn literal, clauses ->
+        clauses
+        |> add_clause(
+          quote(do: {unquote(literal), val}),
+          quote(do: equals(query, main_binding, unquote(literal), val))
+        )
+        |> add_clause(
+          quote(do: {:order_by, {unquote(literal), direction}}),
+          quote(do: order_by(query, main_binding, unquote(literal), direction))
+        )
+      end)
+      |> add_clause_for_each(filters[:sets] || [], fn set, clauses ->
+        add_clause(
+          clauses,
+          quote(do: {unquote(set), val}),
+          quote(do: member_of(query, main_binding, unquote(set), val))
+        )
+      end)
+      |> add_clause_for_each(filters[:smaller_than] || [], fn {fld, real_fld}, clauses ->
+        add_clause(
+          clauses,
+          quote(do: {unquote(fld), val}),
+          quote(do: smaller_than(query, main_binding, unquote(real_fld), val))
+        )
+      end)
+      |> add_clause_for_each(
+        filters[:greater_than_or_equals] || [],
+        fn {fld, real_fld}, clauses ->
+          add_clause(
+            clauses,
+            quote(do: {unquote(fld), val}),
+            quote(do: greater_than_or_equals(query, main_binding, unquote(real_fld), val))
+          )
+        end
+      )
+      |> add_clause(quote(do: _), quote(do: query))
+
+    # create the case statement based on the clauses
     quote generated: true do
       query = unquote(query)
       main_binding = unquote(main_binding)
 
-      case unquote(filter) do
-        {:limit, value} ->
-          GenericQueries.limit(query, value)
-
-        {:offset, value} ->
-          GenericQueries.offset(query, value)
-
-        {:order_by, {field, direction}} when field in unquote(literals) ->
-          GenericQueries.order_by(query, main_binding, field, direction)
-
-        {field, value} when field in unquote(literals) ->
-          GenericQueries.equals(query, main_binding, field, value)
-
-        {field, value} when field in unquote(sets) ->
-          GenericQueries.member_of(query, main_binding, field, value)
-
-        {field, value} when field in unquote(smaller_than_fields) ->
-          GenericQueries.smaller_than(
-            query,
-            main_binding,
-            unquote(smaller_than_map)[field],
-            value
-          )
-
-        {field, value} when field in unquote(greater_than_or_equals_fields) ->
-          GenericQueries.greater_than_or_equals(
-            query,
-            main_binding,
-            unquote(greater_than_or_equals_map)[field],
-            value
-          )
-
-        _ ->
-          query
-      end
+      case unquote(filter), do: unquote(clauses)
     end
   end
 
-  @doc """
-  Applies standard filters to the query. Standard
-  filters include filters for literal matches, datetime relatives, set membership,
-  ordering and pagination.
+  ############
+  # Privates #
+  ############
 
-  See the module docs `#{__MODULE__}` for details and examples.
+  defp add_clause(clauses, clause, block) do
+    clauses ++ [{:->, [], [[clause], block]}]
+  end
 
-  This macro requires that the following module attributes have been set:
-    - `@main_binding`: the named binding of the Ecto model that generic queries are applied to
-    - `@literals`: fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.equals/4`
-    - `@sets`: fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.member_of/4`
-    - `@smaller_than_map`: map of virtual "smaller_than_" fields and the actual fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.smaller_than/4`
-    - `@greater_than_or_equals_map`: map of virtual "greater_than_or_equals_" fields and the actual fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.greater_than_or_equals/4`
-
-  If these module attributes cannot be used, please use the fully parameterized version of this
-  macro, `standard_filters/7`.
-  """
-  defmacro standard_filters(query, filter) do
-    quote do
-      standard_filters(
-        unquote(query),
-        unquote(filter),
-        @main_binding,
-        @literals,
-        @sets,
-        @smaller_than_map,
-        @greater_than_or_equals_map
-      )
-    end
+  defp add_clause_for_each(clauses, enumerable, reductor) do
+    Enum.reduce(enumerable, clauses, reductor)
   end
 end
