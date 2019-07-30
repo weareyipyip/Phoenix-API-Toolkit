@@ -37,7 +37,10 @@ defmodule PhoenixApiToolkit.MixProject do
   defp deps do
     [
       {:ex_doc, "~> 0.21", only: [:dev, :test], runtime: false},
-      {:ecto, "~> 3.0"}
+      {:ecto, "~> 3.0"},
+      {:plug, "~> 1.8"},
+      {:jason, "~> 1.0"},
+      {:jose, "~> 1.9"}
     ]
   end
 end
