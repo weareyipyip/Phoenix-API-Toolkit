@@ -1,5 +1,3 @@
 #!/bin/sh
 
-mix do deps.get, clean, compile
-
-iex -S mix
+MIX_ENV=test mix do deps.get, clean, compile, test
