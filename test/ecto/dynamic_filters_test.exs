@@ -6,15 +6,15 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFiltersTest do
   import Ecto.Query
 
   @filter_definitions [
-    literals: [:id, :username, :residence, :address],
+    literals: [:id, :username, :address, :balance],
     sets: [:roles],
     smaller_than: [
       inserted_before: :inserted_at,
-      updated_before: :updated_at
+      balance_sm: :balance
     ],
     greater_than_or_equals: [
       inserted_at_or_after: :inserted_at,
-      updated_at_or_after: :updated_at
+      balance_gte: :balance
     ]
   ]
 

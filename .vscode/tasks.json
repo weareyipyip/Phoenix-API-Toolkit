@@ -4,20 +4,31 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "(Docker) IEx",
+            "label": "(Docker) Elixir 1.9 IEx",
             "type": "shell",
-            "command": "docker-compose run --rm phoenix_api_toolkit",
+            "command": "docker-compose run --rm phoenix_api_toolkit_1_9",
         },
         {
-            "label": "(Docker) Test in running instance",
+            "label": "(Docker) Elixir 1.7 IEx",
             "type": "shell",
-            "command": "docker-compose exec phoenix_api_toolkit mix test",
+            "command": "docker-compose run --rm phoenix_api_toolkit_1_7",
+        },
+        {
+            "label": "(Docker) Elixir 1.9 test in running instance",
+            "type": "shell",
+            "command": "docker-compose exec phoenix_api_toolkit_1_9 mix test",
+            "group": "test",
+        },
+        {
+            "label": "(Docker) Elixir 1.7 test in running instance",
+            "type": "shell",
+            "command": "docker-compose exec phoenix_api_toolkit_1_7 mix test",
             "group": "test",
         },
         {
             "label": "(Docker) Test",
             "type": "shell",
-            "command": "docker-compose run --rm phoenix_api_toolkit mix do deps.get, test",
+            "command": "docker-compose up",
             "group": "test",
         },
         {

@@ -50,15 +50,15 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
 
 
       @filter_definitions [
-        literals: [:id, :username, :residence, :address],
+        literals: [:id, :username, :address, :balance],
         sets: [:roles],
         smaller_than: [
           inserted_before: :inserted_at,
-          updated_before: :updated_at
+          balance_sm: :balance
         ],
         greater_than_or_equals: [
           inserted_at_or_after: :inserted_at,
-          updated_at_or_after: :updated_at
+          balance_gte: :balance
         ]
       ]
 
@@ -80,16 +80,16 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
       #Ecto.Query<from u0 in "users", as: :user>
 
       # let's do some filtering
-      iex> list_with_standard_filters(%{username: "Peter", inserted_before: DateTime.from_unix!(155555555)})
-      #Ecto.Query<from u0 in "users", as: :user, where: u0.inserted_at < ^~U[1974-12-06 09:52:35Z], where: u0.username == ^"Peter">
+      iex> list_with_standard_filters(%{username: "Peter", balance_sm: 50.00})
+      #Ecto.Query<from u0 in "users", as: :user, where: u0.balance < ^50.0, where: u0.username == ^"Peter">
 
       # limit, offset, and order_by are supported
       iex> list_with_standard_filters(%{limit: 10, offset: 1, order_by: {:address, :desc}})
       #Ecto.Query<from u0 in "users", as: :user, order_by: [desc: u0.address], limit: ^10, offset: ^1>
 
       # complex custom filters can be combined with the standard filters
-      iex> list_with_standard_filters(%{username_prefix: "Pete", updated_at_or_after: DateTime.from_unix!(155555555)})
-      #Ecto.Query<from u0 in "users", as: :user, where: u0.updated_at >= ^~U[1974-12-06 09:52:35Z], where: ilike(u0.username, ^"Pete%")>
+      iex> list_with_standard_filters(%{username_prefix: "Pete", balance_gte: 50.00})
+      #Ecto.Query<from u0 in "users", as: :user, where: u0.balance >= ^50.0, where: ilike(u0.username, ^"Pete%")>
 
       # other fields are ignored / passed through
       iex> list_with_standard_filters(%{number_of_arms: 3, order_by: {:boom, :asc}})

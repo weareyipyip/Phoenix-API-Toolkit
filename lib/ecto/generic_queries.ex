@@ -22,8 +22,8 @@ defmodule PhoenixApiToolkit.Ecto.GenericQueries do
 
       iex> base_query()
       ...> |> equals(:user, :name, "Peter")
-      ...> |> smaller_than(:user, :inserted_at, DateTime.from_unix!(1555523215))
-      #Ecto.Query<from u0 in "users", as: :user, where: u0.name == ^"Peter", where: u0.inserted_at < ^~U[2019-04-17 17:46:55Z]>
+      ...> |> smaller_than(:user, :balance, 50.00)
+      #Ecto.Query<from u0 in "users", as: :user, where: u0.name == ^"Peter", where: u0.balance < ^50.0>
 
   Most of these generic queries rely on named bindings to do their work. That's why it's probably
   a good idea to always name all bindings in your queries, and not rely on positional bindings
@@ -43,8 +43,8 @@ defmodule PhoenixApiToolkit.Ecto.GenericQueries do
       iex> base_query()
       #Ecto.Query<from u0 in "users", as: :user>
 
-      iex> smaller_than(base_query(), :user, :inserted_at, DateTime.from_unix!(1555523215))
-      #Ecto.Query<from u0 in "users", as: :user, where: u0.inserted_at < ^~U[2019-04-17 17:46:55Z]>
+      iex> smaller_than(base_query(), :user, :balance, 50.00)
+      #Ecto.Query<from u0 in "users", as: :user, where: u0.balance < ^50.0>
   """
   @spec smaller_than(Query.t(), atom, atom, any) :: Query.t()
   def smaller_than(query, binding, field, value),
@@ -57,8 +57,8 @@ defmodule PhoenixApiToolkit.Ecto.GenericQueries do
       iex> base_query()
       #Ecto.Query<from u0 in "users", as: :user>
 
-      iex> greater_than_or_equals(base_query(), :user, :inserted_at, DateTime.from_unix!(1555523215))
-      #Ecto.Query<from u0 in "users", as: :user, where: u0.inserted_at >= ^~U[2019-04-17 17:46:55Z]>
+      iex> greater_than_or_equals(base_query(), :user, :balance, 50.00)
+      #Ecto.Query<from u0 in "users", as: :user, where: u0.balance >= ^50.0>
   """
   @spec greater_than_or_equals(Query.t(), atom, atom, any) :: Query.t()
   def greater_than_or_equals(query, binding, field, value),
