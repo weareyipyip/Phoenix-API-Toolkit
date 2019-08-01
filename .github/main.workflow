@@ -1,9 +1,19 @@
-workflow "Automated testing" {
+workflow "Test 1.7" {
   on = "push"
-  resolves = ["test"]
+  resolves = ["test_elixir_1.7"]
 }
 
-action "test" {
+action "test_elixir_1.7" {
+  uses = "docker://elixir:1.7-alpine"
+  runs = [".github/ci/entrypoint.sh"]
+}
+
+workflow "Test 1.9" {
+  on = "push"
+  resolves = ["test_elixir_1.9"]
+}
+
+action "test_elixir_1.9" {
   uses = "docker://elixir:1.9-alpine"
   runs = [".github/ci/entrypoint.sh"]
 }

@@ -42,8 +42,9 @@ defmodule PhoenixApiToolkit.Security.Oauth2Plug do
 
       # a correctly signed request is passed through, with the JWT and JWS assigned
       iex> conn = conn(:get, "/")
-      iex> result = conn |> put_jwt() |> Oauth2Plug.call(@opts)
-      iex> result == conn |> put_jwt() |> assign(:jwt, result.assigns.jwt) |> assign(:jws, result.assigns.jws)
+      iex> jwt = gen_jwt()
+      iex> result = conn |> put_jwt(jwt) |> Oauth2Plug.call(@opts)
+      iex> result == conn |> put_jwt(jwt) |> assign(:jwt, result.assigns.jwt) |> assign(:jws, result.assigns.jws)
       true
 
       # requests that are noncompliant result in an Oauth2TokenVerificationError
