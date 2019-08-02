@@ -1,3 +1,3 @@
 #!/bin/sh
 
-MIX_ENV=test mix do deps.get, clean, compile, test
+mix do local.hex --force, local.rebar --force, deps.get, test
