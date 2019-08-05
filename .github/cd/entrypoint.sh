@@ -15,8 +15,9 @@ echo "***** Install dependencies... *****"
 mix do local.hex --force, local.rebar --force, deps.get
 echo
 
-echo "***** Check versions *****"
+echo "***** Checking versions... *****"
 mix run .github/cd/check_versions.exs README.md
+echo
 
 echo "***** Running tests... *****"
 mix test
