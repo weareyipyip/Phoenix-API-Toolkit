@@ -30,15 +30,15 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
   ## Examples
   For the implementation of `changeset/1`, see `#{__MODULE__}`.
 
-      iex> %Ecto.Changeset{valid?: true} |> valid_changeset()
+      iex> %Ecto.Changeset{valid?: true} |> to_tuple()
       {:ok, %{}}
 
-      iex> %Ecto.Changeset{valid?: false} |> valid_changeset()
+      iex> %Ecto.Changeset{valid?: false} |> to_tuple()
       {:error, %Ecto.Changeset{valid?: false}}
   """
-  @spec valid_changeset(Changeset.t()) :: {:ok, map()} | {:error, Changeset.t()}
-  def valid_changeset(%{valid?: true} = changeset), do: {:ok, changeset.changes}
-  def valid_changeset(%{valid?: false} = changeset), do: {:error, changeset}
+  @spec to_tuple(Changeset.t()) :: {:ok, map()} | {:error, Changeset.t()}
+  def to_tuple(%{valid?: true} = changeset), do: {:ok, changeset.changes}
+  def to_tuple(%{valid?: false} = changeset), do: {:error, changeset}
 
   @doc """
   If the changeset does not contain a change for `field` - even if the field already
@@ -113,45 +113,40 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
 
   @doc """
   Validate the value of an `order_by` query parameter. The format of the parameter
-  is expected to match `#{@order_by_format |> inspect()}`, and the field name should be
-  present in `orderable_fields`.
+  is expected to match `#{@order_by_format |> inspect()}`. The supported fields should be
+  passed as a list or `MapSet` (which performs better) to `orderables`.
 
   If the change is valid, the original change is replaced with a tuple of
-  `{:field, :direction}`, which is supported by `PhoenixApiToolkit.Ecto.GenericQueries.order_by/4`.
+  `{:field, :direction}`, which is supported by `PhoenixApiToolkit.Ecto.DynamicFilters.standard_filters/4`.
 
   ## Examples
   For the implementation of `changeset/1`, see `#{__MODULE__}`.
 
-      @orderable ["first_name", "last_name"]
+      @orderables ~w(first_name last_name) |> MapSet.new()
 
-      iex> changeset(%{order_by: "asc:last_name"}) |> validate_order_by(@orderable)
+      iex> changeset(%{order_by: "asc:last_name"}) |> validate_order_by(@orderables)
       #Ecto.Changeset<action: nil, changes: %{order_by: {:last_name, :asc}}, errors: [], data: %{}, valid?: true>
 
-      iex> changeset(%{order_by: "invalid"}) |> validate_order_by(@orderable)
+      iex> changeset(%{order_by: "invalid"}) |> validate_order_by(@orderables)
       #Ecto.Changeset<action: nil, changes: %{order_by: "invalid"}, errors: [order_by: {"format is asc|desc:field", []}], data: %{}, valid?: false>
 
-      iex> changeset(%{order_by: "asc:eye_color"}) |> validate_order_by(@orderable)
-      #Ecto.Changeset<action: nil, changes: %{order_by: "asc:eye_color"}, errors: [order_by: {"ordering by eye_color is not supported", []}], data: %{}, valid?: false>
+      iex> changeset(%{order_by: "asc:eye_count"}) |> validate_order_by(@orderables)
+      #Ecto.Changeset<action: nil, changes: %{order_by: "asc:eye_count"}, errors: [order_by: {"unknown field eye_count", []}], data: %{}, valid?: false>
 
-      iex> changeset(%{order_by: nil}) |> validate_order_by(@orderable)
+      iex> changeset(%{order_by: nil}) |> validate_order_by(@orderables)
       #Ecto.Changeset<action: nil, changes: %{}, errors: [], data: %{}, valid?: true>
   """
-  @spec validate_order_by(Changeset.t(), [binary()]) :: Changeset.t()
+  @spec validate_order_by(Changeset.t(), MapSet.t(binary)) :: Changeset.t()
   def validate_order_by(changeset, orderable_fields) do
     with order_by when not is_nil(order_by) <- get_change(changeset, :order_by),
          {:captures, [dir, field]} <-
            {:captures, Regex.run(@order_by_format, order_by, capture: :all_but_first)},
-         {:field_valid, true, _field} <- {:field_valid, field in orderable_fields, field} do
+         {:supported, true, _field} <- {:supported, field in orderable_fields, field} do
       put_change(changeset, :order_by, {String.to_atom(field), String.to_atom(dir)})
     else
-      {:captures, nil} ->
-        add_error(changeset, :order_by, "format is asc|desc:field")
-
-      {:field_valid, false, field} ->
-        add_error(changeset, :order_by, "ordering by #{field} is not supported")
-
-      _ ->
-        delete_change(changeset, :order_by)
+      {:captures, nil} -> add_error(changeset, :order_by, "format is asc|desc:field")
+      {:supported, false, field} -> add_error(changeset, :order_by, "unknown field #{field}")
+      _ -> delete_change(changeset, :order_by)
     end
   end
 

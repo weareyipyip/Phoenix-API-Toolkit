@@ -8,7 +8,6 @@ defmodule PhoenixApiToolkit.Ecto.ValidatorsTest do
   @png_signature "89504E470D0A1A0A" |> Base.decode16!()
   @png_file "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
   @gif_file "R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
-  @orderable ["first_name", "last_name"]
   @schema %{
     first_name: :string,
     last_name: :string,
@@ -16,6 +15,7 @@ defmodule PhoenixApiToolkit.Ecto.ValidatorsTest do
     order_by: :string,
     file: :string
   }
+  @orderables ~w(first_name last_name) |> MapSet.new()
 
   def changeset(changes \\ %{}) do
     {%{}, @schema} |> cast(changes, [:first_name, :last_name, :order_by, :file])

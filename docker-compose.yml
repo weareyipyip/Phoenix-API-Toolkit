@@ -1,10 +1,8 @@
-version: "3.7"
+version: "3"
 
 services:
-    phoenix_api_toolkit_1_9:
-        build:
-            context: .
-            dockerfile: docker/dev_1.9.dockerfile
+    phoenix_api_toolkit_1.9:
+        image: elixir:1.9-alpine
         working_dir: /application
         # The top mount mounts the local source code into the container for compilation and running.
         # The other mounts effectively function as exclusions on the top mount, to prevent build artifacts from being created locally (as root).
@@ -13,32 +11,30 @@ services:
         volumes:
             - .:/application:cached
             - /application/.elixir_ls
-            - 1_9__build:/application/_build
-            - 1_9_deps:/application/deps
-            - 1_9_mix:/root/.mix
+            - 1.9__build:/application/_build
+            - 1.9_deps:/application/deps
+            - 1.9_mix:/root/.mix
         environment:            
             MIX_ENV: dev
         command: /bin/sh /application/docker/cmd.sh
 
-    phoenix_api_toolkit_1_7:
-        build:
-            context: .
-            dockerfile: docker/dev_1.7.dockerfile
+    phoenix_api_toolkit_1.7:
+        image: elixir:1.7-alpine
         working_dir: /application
         volumes:
             - .:/application:cached
             - /application/.elixir_ls
-            - 1_7__build:/application/_build
-            - 1_7_deps:/application/deps
-            - 1_7_mix:/root/.mix
+            - 1.7__build:/application/_build
+            - 1.7_deps:/application/deps
+            - 1.7_mix:/root/.mix
         environment:            
             MIX_ENV: dev
         command: /bin/sh /application/docker/cmd.sh
 
 volumes:
-    1_9__build:
-    1_9_deps:
-    1_9_mix:
-    1_7__build:
-    1_7_deps:
-    1_7_mix:
+    1.9__build:
+    1.9_deps:
+    1.9_mix:
+    1.7__build:
+    1.7_deps:
+    1.7_mix:
