@@ -1,14 +1,13 @@
 defmodule PhoenixApiToolkit.Security.HmacPlug do
   @moduledoc """
   Checks HMAC authentication. Expects a HMAC-<some_algorithm> of the request body to be present in the
-  "authorization" header. Supported algorithms are those supported by `:crypto.hmac/3`, which can be
-  looked up in the [Erlang docs](http://erlang.org/doc/man/crypto.html#type-hmac_hash_algorithm).
+  "authorization" header. Supported algorithms are those supported by `:crypto.hmac/3`.
   Relies on `PhoenixApiToolkit.CacheBodyReader` being called by `Plug.Parsers`.
 
   To be considered a valid request by the plug, a request has to meet the following criteria:
    - the request path must match the `"path"` stated in the request body
    - the request HTTP method must match the `"method"` stated in the request body
-   - the request timestamp must not be older than `max_age`
+   - the request `"timestamp"` must not be older than `max_age`
 
   If the token is invalid for any reason, `PhoenixApiToolkit.Security.HmacVerificationError` is raised,
   resulting in a 401 Unauthorized response.

@@ -10,12 +10,12 @@ defmodule PhoenixApiToolkit.Security.Plugs do
   require Logger
 
   # DELETE should not have a request body
-  @unsafe_methods ~w(PUT POST PATCH)
+  @unsafe_methods ~w(PUT POST PATCH) |> MapSet.new()
 
   @doc """
-  Checks if the request's `content-type` header is present. Content matching is done by `Plug.Parsers`.
+  Checks if the request's `"content-type"` header is present. Content matching is done by `Plug.Parsers`.
 
-  The filter is only applied to methods which are expected to carry contents, to `put`, `post` and `patch`
+  The filter is only applied to methods which are expected to carry contents, to `PUT`, `POST` and `PATCH`
   methods, that is. Only one `content-type` header is allowed. A noncompliant request causes a
   `PhoenixApiToolkit.Security.MissingContentTypeError` to be raised,
   resulting in a 415 Unsupported Media Type response.
@@ -52,7 +52,7 @@ defmodule PhoenixApiToolkit.Security.Plugs do
 
   @doc """
   Adds security headers to the response as recommended for API's by OWASP. Sets
-  `x-frame-options: deny` and `x-content-type-options: nosniff`.
+  `"x-frame-options": "deny"` and `"x-content-type-options": "nosniff"`.
 
   ## Examples
 
@@ -71,7 +71,7 @@ defmodule PhoenixApiToolkit.Security.Plugs do
   end
 
   @doc """
-  Assign the clients IP to the conn as `client_ip`. Prefers IP in header `x-forwarded-for` over
+  Assigns the client's IP to the conn as `client_ip`. Prefers IP in header `"x-forwarded-for"` over
   the directly detected remote IP.
 
   ## Examples
@@ -100,7 +100,7 @@ defmodule PhoenixApiToolkit.Security.Plugs do
   end
 
   @doc """
-  Check if the JWT in `conn.assigns.jwt` has a scope that matches the `exp_scopes` parameter.
+  Check if the JWT in `conn.assigns.jwt` has a `"scope"` claim that matches the `exp_scopes` parameter.
   This assign is set by `PhoenixApiToolkit.Security.Oauth2Plug` and should contain a `JOSE.JWT` struct.
 
   If not, a `PhoenixApiToolkit.Security.Oauth2TokenVerificationError` is raised,
@@ -132,7 +132,7 @@ defmodule PhoenixApiToolkit.Security.Plugs do
   end
 
   @doc """
-  Check if the JWT in `conn.assigns.jwt` has an "aud" claim that matches the `exp_aud` parameter.
+  Check if the JWT in `conn.assigns.jwt` has an `"aud"` claim that matches the `exp_aud` parameter.
   This assign is set by `PhoenixApiToolkit.Security.Oauth2Plug` and should contain a `JOSE.JWT` struct.
 
   If not, a `PhoenixApiToolkit.Security.Oauth2TokenVerificationError` is raised,

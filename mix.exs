@@ -4,7 +4,7 @@ defmodule PhoenixApiToolkit.MixProject do
   def project do
     [
       app: :phoenix_api_toolkit,
-      version: "0.2.0-alpha",
+      version: "0.3.0",
       elixir: "~> 1.7",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -40,7 +40,7 @@ defmodule PhoenixApiToolkit.MixProject do
       {:ecto, "~> 3.0"},
       {:plug, "~> 1.8"},
       {:jason, "~> 1.0"},
-      {:jose, "~> 1.9"}
+      {:jose, "~> 1.9", optional: true}
     ]
   end
 end
