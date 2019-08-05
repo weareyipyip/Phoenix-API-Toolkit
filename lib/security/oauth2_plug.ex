@@ -4,6 +4,7 @@ defmodule PhoenixApiToolkit.Security.Oauth2Plug do
   request header prefixed with `Bearer: `. The Plug must be configured with a set of JSON Web Keys used to
   sign the JWT's, a whitelist of algorithms that may be used to sign the JWT and the expected issuer.
   The optional `dummy_verify` setting can be used to skip JWT verification for development and testing.
+  Requires `:jose` dependency in your mix.exs file.
 
   The most important setting is `keyset`, in which a base64-encoded JSON list of JWK's must be provided. In order
   to make the parsing work reliably, do the encoding in IEx or use `echo 'keylist' | base64` in bash.
@@ -40,7 +41,7 @@ defmodule PhoenixApiToolkit.Security.Oauth2Plug do
               alg_whitelist: ["RS256"]
             )
 
-      # a correctly signed request is passed through, with the JWT and JWS assigned
+      # a correctly signed request is passed through, with the JWT's payload and JWS assigned
       iex> conn = conn(:get, "/")
       iex> jwt = gen_jwt()
       iex> result = conn |> put_jwt(jwt) |> Oauth2Plug.call(@opts)

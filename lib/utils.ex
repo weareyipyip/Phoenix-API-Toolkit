@@ -24,9 +24,7 @@ defmodule PhoenixApiToolkit.Utils do
   """
   @spec get_keyword!(Keyword.t(), atom) :: any
   def get_keyword!(keyword_list, key) do
-    keyword_list
-    |> Keyword.get(key)
-    |> case do
+    case keyword_list[key] do
       nil -> raise ArgumentError, "key \"#{key}\" not found"
       value -> value
     end

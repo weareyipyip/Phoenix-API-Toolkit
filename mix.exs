@@ -40,7 +40,7 @@ defmodule PhoenixApiToolkit.MixProject do
       {:ecto, "~> 3.0"},
       {:plug, "~> 1.8"},
       {:jason, "~> 1.0"},
-      {:jose, "~> 1.9"}
+      {:jose, "~> 1.9", optional: true}
     ]
   end
 end
