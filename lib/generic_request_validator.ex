@@ -168,16 +168,17 @@ defmodule PhoenixApiToolkit.GenericRequestValidator do
 
   ## Examples
 
-      iex> resource_schema() |> query_order_by(%{"order_by" => "asc:last_name"})
+      iex> resource_schema() |> query_order_by(%{"order_by" => "asc:last_name"}, ~w(last_name) |> MapSet.new())
       #Ecto.Changeset<action: nil, changes: %{order_by: {:last_name, :asc}}, errors: [], data: %{}, valid?: true>
 
   See `PhoenixApiToolkit.Ecto.Validators.validate_order_by/1` for more examples.
   """
-  @spec query_order_by(map() | Ecto.Changeset.t() | schema, map()) :: Ecto.Changeset.t()
-  def query_order_by(changeset, attrs) do
+  @spec query_order_by(map() | Ecto.Changeset.t() | schema, map(), MapSet.t(binary)) ::
+          Ecto.Changeset.t()
+  def query_order_by(changeset, attrs, orderables) do
     changeset
     |> cast(attrs, [:order_by])
-    |> validate_order_by()
+    |> validate_order_by(orderables)
   end
 
   @doc """

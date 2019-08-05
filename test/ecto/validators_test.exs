@@ -15,6 +15,7 @@ defmodule PhoenixApiToolkit.Ecto.ValidatorsTest do
     order_by: :string,
     file: :string
   }
+  @orderables ~w(first_name last_name) |> MapSet.new()
 
   def changeset(changes \\ %{}) do
     {%{}, @schema} |> cast(changes, [:first_name, :last_name, :order_by, :file])
