@@ -81,42 +81,41 @@ defmodule PhoenixApiToolkit.Security.Oauth2PlugTest do
     end
 
     test "should reject a request with a missing key ID in the JWT header" do
-      [gen_jwt(@jwt_defaults, jws: gen_jws() |> Map.drop(["kid"]))]
+      [gen_jwt(@jwt_defaults |> Map.put(:jws, @jwt_defaults.jws |> Map.drop(["kid"])))]
       |> expect_token_error("no key ID in JWT header")
     end
 
     test "should reject a request with an unknown key ID in the JWT header" do
-      [gen_jwt(@jwt_defaults, jws: gen_jws(kid: "unknown kid"))]
+      [gen_jwt(@jwt_defaults, jws: [kid: "unknown kid"])]
       |> expect_token_error("unknown signing key")
     end
 
     test "should reject a request signed with an incorrect algorithm" do
       [
-        gen_jwt(@jwt_defaults, jws: gen_jws(alg: "RS384")),
-        gen_jwt(@jwt_defaults, jws: gen_jws(alg: "RS512"))
+        gen_jwt(@jwt_defaults, jws: [alg: "RS384"]),
+        gen_jwt(@jwt_defaults, jws: [alg: "RS512"])
       ]
       |> expect_token_error("signature mismatch")
     end
 
     test "should reject a request signed with an incorrect key" do
-      [gen_jwt(@jwt_defaults, jwk: gen_jwk(@other_keypair))]
+      [gen_jwt(@jwt_defaults, jwk: @other_keypair)]
       |> expect_token_error("signature mismatch")
     end
 
     test "should reject a request with jwt claim exp missing, malformed or expired" do
       [
-        gen_jwt(@jwt_defaults, payload: gen_payload() |> Map.drop(["exp"])),
-        gen_jwt(@jwt_defaults, payload: gen_payload(exp: "boom")),
-        gen_jwt(@jwt_defaults, payload: gen_payload(exp: 1))
+        gen_jwt(@jwt_defaults, payload: [exp: "boom"]),
+        gen_jwt(@jwt_defaults, payload: [exp: 1])
       ]
       |> expect_token_error("expired")
     end
 
     test "should reject a request with jwt claim iss missing, malformed or mismatched" do
       [
-        gen_jwt(@jwt_defaults, payload: gen_payload() |> Map.drop(["iss"])),
-        gen_jwt(@jwt_defaults, payload: gen_payload(iss: 12)),
-        gen_jwt(@jwt_defaults, payload: gen_payload(iss: "boom"))
+        gen_jwt(@jwt_defaults |> Map.put(:payload, @jwt_defaults.payload |> Map.drop(["iss"]))),
+        gen_jwt(@jwt_defaults, payload: [iss: 12]),
+        gen_jwt(@jwt_defaults, payload: [iss: "boom"])
       ]
       |> expect_token_error("issuer mismatch")
     end
@@ -131,7 +130,7 @@ defmodule PhoenixApiToolkit.Security.Oauth2PlugTest do
 
   describe "Oauth2 plug in dummy verification mode" do
     test "should allow incorrectly signed requests" do
-      jwt = gen_jwt(@jwt_defaults, jwk: gen_jwk(@other_keypair))
+      jwt = gen_jwt(@jwt_defaults, jwk: @other_keypair)
       assert %Plug.Conn{} = conn(:get, "/") |> put_jwt(jwt) |> Oauth2Plug.call(@dummy_opts)
     end
 
