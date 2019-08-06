@@ -11,6 +11,7 @@ services:
         volumes:
             - .:/application:cached
             - /application/.elixir_ls
+            - /application/cover
             - 1.9__build:/application/_build
             - 1.9_deps:/application/deps
             - 1.9_mix:/root/.mix
@@ -24,6 +25,7 @@ services:
         volumes:
             - .:/application:cached
             - /application/.elixir_ls
+            - /application/cover
             - 1.7__build:/application/_build
             - 1.7_deps:/application/deps
             - 1.7_mix:/root/.mix

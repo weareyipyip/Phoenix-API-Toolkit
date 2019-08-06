@@ -90,7 +90,7 @@ defmodule PhoenixApiToolkit.Security.HmacPlug do
   @impl Plug
   @doc false
   def call(conn, %{hmac_secret: hmac_secret, max_age: max_age, hash_algorithm: hash_algorithm}) do
-    with hmac = parse_auth_header(conn),
+    with hmac <- parse_auth_header(conn),
          body = CacheBodyReader.get_raw_request_body(conn) || "",
          message_hmac = :crypto.hmac(hash_algorithm, hmac_secret, body) |> Base.encode64(),
          {:hmac_matches, true} <- {:hmac_matches, hmac == message_hmac},
@@ -103,7 +103,6 @@ defmodule PhoenixApiToolkit.Security.HmacPlug do
         raise HmacVerificationError, "HMAC invalid: hash mismatch"
 
       error ->
-        Logger.error("Unknown error when verifying HMAC")
         error |> inspect() |> Logger.error()
         raise HmacVerificationError, "HMAC invalid: unknown error"
     end
