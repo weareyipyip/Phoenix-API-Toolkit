@@ -47,7 +47,7 @@ defmodule PhoenixApiToolkit.TestHelpers do
         }
 
   @doc """
-  Generate a JSON Web Token for testing purposes.
+  Generate a JSON Web Token for testing purposes, with an "exp" claim 5 minutes in the future.
   It is possible to override parts of the signing key, payload and signature to test with different
   scopes, expiration times, issuers, key ID's etc, override the entire signing key, payload or signature.
   The defaults should generate a valid JWT. For use with endpoints secured with `PhoenixApiToolkit.Security.Oauth2Plug`.
@@ -68,26 +68,25 @@ defmodule PhoenixApiToolkit.TestHelpers do
       iex> jwt |> JOSE.JWS.peek_payload() |> Jason.decode!() |> Map.drop(["exp"])
       %{"iss" => "http://my-oauth2-provider"}
 
-      # the jwk, payload and jws can be overriden for testing purposes
-      iex> gen_jwt(@jwt_defaults, payload: %{}) |> JOSE.JWS.peek_payload() |> Jason.decode!()
-      %{}
-
-      # this is most useful when combined with gen_jwk/gen_payload/gen_jws functions
-      # to override parts of the jwk/payload/jws
-      iex> gen_jwt(@jwt_defaults, jws: gen_jws(kid: "other key")) |> JOSE.JWS.peek_protected() |> Jason.decode!()
+      # parts of the jwk, payload and jws can be overridden for testing purposes
+      iex> gen_jwt(@jwt_defaults, payload: [iss: "boom"]) |> JOSE.JWS.peek_payload() |> Jason.decode!() |> Map.drop(["exp"])
+      %{"iss" => "boom"}
+      iex> gen_jwt(@jwt_defaults, jws: [kid: "other key"]) |> JOSE.JWS.peek_protected() |> Jason.decode!()
       %{"alg" => "RS256", "kid" => "other key", "typ" => "JWT"}
-      iex> gen_jwt(@jwt_defaults, payload: gen_payload(exp: 12345)) |> JOSE.JWS.peek_payload() |> Jason.decode!() |> Map.get("exp")
+      iex> gen_jwt(@jwt_defaults, payload: [exp: 12345]) |> JOSE.JWS.peek_payload() |> Jason.decode!() |> Map.get("exp")
       12345
   """
   @spec gen_jwt(gen_jwt_defaults, gen_jwt_opts) :: binary
   def gen_jwt(defaults, overrides \\ []) do
-    overrides =
-      overrides
-      |> Keyword.put_new(:jwk, defaults.jwk)
-      |> Keyword.put_new(:payload, defaults.payload)
-      |> Keyword.put_new(:jws, defaults.jws)
+    jwk = defaults.jwk |> Map.merge((overrides[:jwk] || []) |> Map.new() |> to_string_map())
+    jws = defaults.jws |> Map.merge((overrides[:jws] || []) |> Map.new() |> to_string_map())
 
-    JOSE.JWT.sign(overrides[:jwk], overrides[:jws], overrides[:payload])
+    payload =
+      defaults.payload
+      |> Map.merge(%{"exp" => (DateTime.utc_now() |> DateTime.to_unix(:second)) + 300})
+      |> Map.merge((overrides[:payload] || []) |> Map.new() |> to_string_map())
+
+    JOSE.JWT.sign(jwk, jws, payload)
     |> JOSE.JWS.compact()
     |> elem(1)
   end
@@ -116,22 +115,19 @@ defmodule PhoenixApiToolkit.TestHelpers do
   @doc """
   Generate a JSON Web Token payload for testing purposes. See `gen_jwt/2` for details.
 
-  The default only has an "exp" claim set to 5 minutes in the future.
+  The default payload is empty.
 
   ## Examples
 
-      iex> gen_payload()["exp"] > 0
-      true
+      iex> gen_payload()
+      %{}
 
       iex> gen_payload(iss: "something")["iss"]
       "something"
   """
   @spec gen_payload(map | keyword) :: map
   def gen_payload(overrides \\ []) do
-    Map.merge(
-      %{"exp" => (DateTime.utc_now() |> DateTime.to_unix(:second)) + 300},
-      overrides |> Map.new() |> to_string_map()
-    )
+    overrides |> Map.new() |> to_string_map()
   end
 
   @doc """
