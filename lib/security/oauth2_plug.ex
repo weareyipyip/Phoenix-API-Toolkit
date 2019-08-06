@@ -34,16 +34,22 @@ defmodule PhoenixApiToolkit.Security.Oauth2Plug do
       import PhoenixApiToolkit.TestHelpers
       alias PhoenixApiToolkit.Security.Oauth2Plug
 
+      @jwt_defaults %{
+        jwk: gen_jwk(),
+        jws: gen_jws(),
+        payload: gen_payload(iss: "http://my-oauth2-provider")
+      }
+
       @opts Oauth2Plug.init(
               keyset: test_jwks(),
-              exp_iss: default_payload()[:iss],
+              exp_iss: @jwt_defaults.payload["iss"],
               dummy_verify: false,
               alg_whitelist: ["RS256"]
             )
 
       # a correctly signed request is passed through, with the JWT's payload and JWS assigned
       iex> conn = conn(:get, "/")
-      iex> jwt = gen_jwt()
+      iex> jwt = gen_jwt(@jwt_defaults)
       iex> result = conn |> put_jwt(jwt) |> Oauth2Plug.call(@opts)
       iex> result == conn |> put_jwt(jwt) |> assign(:jwt, result.assigns.jwt) |> assign(:jws, result.assigns.jws)
       true

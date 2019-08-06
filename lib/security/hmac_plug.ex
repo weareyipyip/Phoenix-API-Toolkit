@@ -40,7 +40,8 @@ defmodule PhoenixApiToolkit.Security.HmacPlug do
       import PhoenixApiToolkit.TestHelpers
       import PhoenixApiToolkit.CacheBodyReader
 
-      @opts HmacPlug.init(hmac_secret: test_hmac_secret())
+      @secret "supersecretkey"
+      @opts HmacPlug.init(hmac_secret: @secret)
 
       def conn_for_hmac(method, path, raw_body) do
         conn(method, path, raw_body |> Jason.decode!())
@@ -50,19 +51,19 @@ defmodule PhoenixApiToolkit.Security.HmacPlug do
 
       # a correctly signed request is passed through
       iex> body = create_hmac_plug_body("/", "POST", %{hello: "world"})
-      iex> {:ok, _raw_body, conn} = conn_for_hmac(:post, "/", body) |> put_hmac(body) |> cache_and_read_body()
+      iex> {:ok, _raw_body, conn} = conn_for_hmac(:post, "/", body) |> put_hmac(body, @secret) |> cache_and_read_body()
       iex> conn = HmacPlug.call(conn, @opts)
       iex> conn.body_params["contents"]
       %{"hello" => "world"}
 
       # requests that are noncompliant result in a PhoenixApiToolkit.Security.HmacVerificationError
       iex> body = create_hmac_plug_body("/", "PUT", %{hello: "world"})
-      iex> {:ok, _raw_body, conn} = conn_for_hmac(:post, "/", body) |> put_hmac(body) |> cache_and_read_body()
+      iex> {:ok, _raw_body, conn} = conn_for_hmac(:post, "/", body) |> put_hmac(body, @secret) |> cache_and_read_body()
       iex> HmacPlug.call(conn, @opts)
       ** (PhoenixApiToolkit.Security.HmacVerificationError) HMAC invalid: method mismatch
 
       iex> body = create_hmac_plug_body("/", "POST", %{hello: "world"}, 12345)
-      iex> {:ok, _raw_body, conn} = conn_for_hmac(:post, "/", body) |> put_hmac(body) |> cache_and_read_body()
+      iex> {:ok, _raw_body, conn} = conn_for_hmac(:post, "/", body) |> put_hmac(body, @secret) |> cache_and_read_body()
       iex> HmacPlug.call(conn, @opts)
       ** (PhoenixApiToolkit.Security.HmacVerificationError) HMAC invalid: expired
   """
