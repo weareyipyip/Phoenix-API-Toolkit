@@ -312,20 +312,14 @@ defmodule PhoenixApiToolkit.TestHelpers do
     do: conn |> Conn.put_req_header("content-type", "application/json")
 
   @doc """
-  Converts a map with atom or mixed keys to a map with only string keys.
+  Converts a map with atoms in it as keys or values to a map with just strings.
+  Works on nested maps as well.
 
   ## Examples
 
-      iex> %{:first_name => "Peter", "last_name" => "Pan"} |> to_string_map()
-      %{"first_name" => "Peter", "last_name" => "Pan"}
+      iex> %{first_name: "Peter", stuff: %{"things" => :indeed}} |> to_string_map()
+      %{"first_name" => "Peter", "stuff" => %{"things" => "indeed"}}
   """
   @spec to_string_map(map) :: map
-  def to_string_map(map) do
-    map
-    |> Enum.map(fn
-      {k, v} when is_atom(k) -> {"#{k}", v}
-      other -> other
-    end)
-    |> Map.new()
-  end
+  def to_string_map(map), do: map |> Jason.encode!() |> Jason.decode!()
 end
