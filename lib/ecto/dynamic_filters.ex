@@ -95,7 +95,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
       iex> list_with_standard_filters(%{number_of_arms: 3, order_by: {:boom, :asc}})
       #Ecto.Query<from u0 in "users", as: :user>
   """
-
+  alias Ecto.Query
   import PhoenixApiToolkit.Ecto.GenericQueries
 
   @typedoc "Format of a filter that can be applied to a query to narrow it down"

@@ -37,5 +37,11 @@
                 "isDefault": true,
             },
         },
+        {
+            "label": "(Local) Test with coverage",
+            "type": "shell",
+            "command": "mix test --cover",
+            "group": "test",
+        },
     ]
 }

@@ -99,7 +99,6 @@ defmodule PhoenixApiToolkit.Security.Oauth2Plug do
       |> Conn.assign(:jws, jws)
     else
       error ->
-        Logger.error("Unknown error when verifying Oauth2 token")
         error |> inspect() |> Logger.error()
         raise Oauth2TokenVerificationError, "Oauth2 token invalid: unknown error"
     end
@@ -139,8 +138,7 @@ defmodule PhoenixApiToolkit.Security.Oauth2Plug do
   defp verify_jwt(raw_jwt, keyset, alg_whitelist, false) do
     with {:ok, key_id} <- peek_protected(raw_jwt),
          %{fields: _} = jwk <- keyset[key_id],
-         {true, _jwt, _jws} = result <-
-           JOSE.JWT.verify_strict(jwk, alg_whitelist, raw_jwt) do
+         {true, _jwt, _jws} = result <- JOSE.JWT.verify_strict(jwk, alg_whitelist, raw_jwt) do
       result
     else
       {false, _, _} ->

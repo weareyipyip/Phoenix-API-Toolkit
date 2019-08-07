@@ -3,23 +3,55 @@
 # halt on errors and undefined variables
 set -eu
 
-echo
-echo "***** Environment *****"
+export MIX_ENV=test
+
+echo "***************"
+echo "* Environment *"
+echo "***************"
 echo
 printenv
 echo
-echo "***********************"
+echo "Done."
 echo
 
-echo "***** Install dependencies... *****"
+echo "******************************"
+echo "* Installing dependencies... *"
+echo "******************************"
+echo
 mix do local.hex --force, local.rebar --force, deps.get
 echo
-
-echo "***** Running tests... *****"
-mix test --cover
+echo "Done."
 echo
 
-# create docs, just to check that it succeeds
-echo "***** Creating docs... *****"
-MIX_ENV=test mix docs
+echo "****************"
+echo "* Compiling... *"
+echo "****************"
+echo
+mix compile --warnings-as-errors
+echo
+echo "Done."
+echo
+
+echo "*************************"
+echo "* Running mix format... *"
+echo "*************************"
+echo
+mix format --check-formatted
+echo "Done."
+echo
+
+echo "********************"
+echo "* Running tests... *"
+echo "********************"
+echo
+mix test --cover
+echo "Done."
+echo
+
+echo "********************"
+echo "* Creating docs... *"
+echo "********************"
+echo
+mix docs
+echo "Done."
 echo
