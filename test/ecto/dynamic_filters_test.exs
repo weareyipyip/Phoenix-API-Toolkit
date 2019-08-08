@@ -32,15 +32,20 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFiltersTest do
     end)
   end
 
-  def by_username_prefix(query, prefix) do
-    from(user in query, where: ilike(user.username, ^"#{prefix}%"))
+  def by_group_name(query, group_name) do
+    from(
+      [user: user] in query,
+      join: group in assoc(user, :group),
+      as: :group,
+      where: group.name == ^group_name
+    )
   end
 
   def list_with_standard_filters(filters \\ %{}) do
     from(user in "users", as: :user)
     |> apply_filters(filters, fn
       # Add custom filters first and fallback to standard filters
-      {:username_prefix, value}, query -> by_username_prefix(query, value)
+      {:group_name, value}, query -> by_group_name(query, value)
       filter, query -> standard_filters(query, filter, :user, @filter_definitions)
     end)
   end
