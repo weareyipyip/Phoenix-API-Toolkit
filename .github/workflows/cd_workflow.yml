@@ -1,0 +1,60 @@
+name: CD / Publish release
+# after things work, it will be on release
+# on: release
+on: pull_request
+  # push:
+  #   branches:
+  #   - feature/update-to-github-actions-yaml-format
+
+jobs:
+  deploy:
+    name: Publish release
+    
+    runs-on: ubuntu-latest
+
+    container:
+      # alpine causes errors in the steps, the container exits immediately, apparently
+      # it may help to specify shell "sh" but I cannot get that to work either
+      image: elixir:1.9-slim
+
+    steps:
+      - name: Display build environment
+        run: printenv
+      - name: DevOps only
+        uses: actions/bin/filter@master
+        with:
+          args: actor 'juulSme' 'TimPelgrim' 'EvertVerboven'
+      - name: Published release only
+        uses: actions/bin/filter@master
+        with: 
+          args: action 'published'
+      - name: Checkout code
+        uses: actions/checkout@master
+      - name: Install dependencies
+        run: mix do local.hex --force, local.rebar --force, deps.get
+      - name: Check that versions match in tag, readme and mix.exs
+        run: mix run check_versions.exs
+      - name: Compile code (warnings as errors)
+        run: mix compile --warnings-as-errors
+        env:
+          MIX_ENV: test
+      - name: Check code formatting
+        run: mix format --check-formatted
+        env:
+          MIX_ENV: test
+      - name: Run tests (with coverage)
+        run: mix test --cover
+      - name: Run dialyzer
+        run: mix dialyzer --halt-exit-status
+        env:
+          MIX_ENV: test
+      - name: Create docs
+        run: mix docs
+        env:
+          MIX_ENV: test
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+      # disabled for now because I don't really want to release nog
+      # - name: Publish release
+      #   run: mix hex.publish --yes
+      #   env:
+      #     HEX_API_KEY: ${{ secrets.HEX_API_KEY }}

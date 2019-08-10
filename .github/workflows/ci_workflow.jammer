@@ -1,0 +1,53 @@
+name: CI / Automated testing
+on: push
+
+jobs: 
+  ci_1_7:
+    name: Elixir 1.7 CI
+    runs-on: ubuntu-latest
+
+    container:
+      image: elixir:1.7-slim
+      env: 
+        MIX_ENV: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@master
+      - name: Display build environment        
+        run: printenv
+      - name: Install dependencies
+        run: mix do local.hex --force, local.rebar --force, deps.get
+      - name: Compile code (warnings as errors)
+        run: mix compile --warnings-as-errors
+      - name: Check code formatting
+        run: mix format --check-formatted
+      - name: Run tests (with coverage)
+        run: mix test --cover
+      - name: Create docs
+        run: mix docs
+
+  ci_1_9:
+    name: Elixir 1.9 CI
+    runs-on: ubuntu-latest
+
+    container:
+      image: elixir:1.9-slim
+      env: 
+        MIX_ENV: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@master
+      - name: Display build environment        
+        run: printenv
+      - name: Install dependencies
+        run: mix do local.hex --force, local.rebar --force, deps.get
+      - name: Compile code (warnings as errors)
+        run: mix compile --warnings-as-errors
+      - name: Check code formatting
+        run: mix format --check-formatted
+      - name: Run tests (with coverage)
+        run: mix test --cover
+      - name: Create docs
+        run: mix docs
