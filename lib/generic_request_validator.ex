@@ -173,7 +173,7 @@ defmodule PhoenixApiToolkit.GenericRequestValidator do
 
   See `PhoenixApiToolkit.Ecto.Validators.validate_order_by/2` for more examples.
   """
-  @spec query_order_by(map() | Ecto.Changeset.t() | schema, map(), MapSet.t(binary)) ::
+  @spec query_order_by(map() | Ecto.Changeset.t() | schema, map(), MapSet.t()) ::
           Ecto.Changeset.t()
   def query_order_by(changeset, attrs, orderables) do
     changeset
