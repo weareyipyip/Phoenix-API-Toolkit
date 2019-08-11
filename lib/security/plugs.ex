@@ -116,9 +116,13 @@ defmodule PhoenixApiToolkit.Security.Plugs do
       iex> conn = conn_with_scope("admin read:phone")
       iex> conn == conn |> verify_oauth2_scope(["admin"])
       true
+      iex> conn == conn |> verify_oauth2_scope(["admin", "not:a:match"])
+      true
+      iex> conn == conn |> verify_oauth2_scope(["admin", "read:phone"])
+      true
 
       # an error is raised if there is no matching scope
-      iex> conn_with_scope("admin read:phone") |> verify_oauth2_scope(["user"])
+      iex> conn_with_scope("admin read:phone") |> verify_oauth2_scope(["not:a:match"])
       ** (PhoenixApiToolkit.Security.Oauth2TokenVerificationError) Oauth2 token invalid: scope mismatch
   """
   @spec verify_oauth2_scope(Conn.t(), [binary]) :: Conn.t()

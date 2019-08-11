@@ -135,7 +135,7 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
       iex> changeset(%{order_by: nil}) |> validate_order_by(@orderables)
       #Ecto.Changeset<action: nil, changes: %{}, errors: [], data: %{}, valid?: true>
   """
-  @spec validate_order_by(Changeset.t(), MapSet.t()) :: Changeset.t()
+  @spec validate_order_by(Changeset.t(), Enum.t()) :: Changeset.t()
   def validate_order_by(changeset, orderable_fields) do
     with order_by when not is_nil(order_by) <- get_change(changeset, :order_by),
          {:captures, [dir, field]} <-
