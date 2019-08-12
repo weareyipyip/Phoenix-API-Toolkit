@@ -144,7 +144,7 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
       put_change(changeset, :order_by, {String.to_atom(field), String.to_atom(dir)})
     else
       {:captures, nil} -> add_error(changeset, :order_by, "format is asc|desc:field")
-      {:supported, false, field} -> add_error(changeset, :order_by, "unknown field #{field}")
+      {:supported, false, field} -> add_error(changeset, :order_by, "unknown field " <> field)
       _ -> delete_change(changeset, :order_by)
     end
   end
