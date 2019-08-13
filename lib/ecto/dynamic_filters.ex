@@ -57,7 +57,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
         sets: [:roles],
         smaller_than: [
           inserted_before: :inserted_at,
-          balance_sm: :balance
+          balance_lt: :balance
         ],
         greater_than_or_equals: [
           inserted_at_or_after: :inserted_at,
@@ -94,7 +94,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
       #Ecto.Query<from u0 in "users", as: :user>
 
       # let's do some filtering
-      iex> list_with_standard_filters(%{username: "Peter", balance_sm: 50.00})
+      iex> list_with_standard_filters(%{username: "Peter", balance_lt: 50.00})
       #Ecto.Query<from u0 in "users", as: :user, where: u0.balance < ^50.0, where: u0.username == ^"Peter">
 
       # limit, offset, and order_by are supported
@@ -112,7 +112,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
   This will generate the following docs:
 
       iex> generate_filter_docs(@filter_definitions, literals: [:group_name])
-      "## Literal filters\\n\\nLiteral filters are compared for equality (is the filter value equal to the row's value?).\\nFor an example query executed by a literal filter, please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.equals/4`.\\nThe following filters are supported:\\n* `address`\\n* `balance`\\n* `group_name`\\n* `id`\\n* `username`\\n\\n## Set filters\\n\\nSet filters are compared for set membership (is the filter value a member of the row's set?).\\nFor an example query executed by a set filter, please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.member_of/4`.\\nThe following filters are supported:\\n* `roles`\\n\\n## Smaller-than filters\\n\\nSmaller-than filters are compared relatively (is the filter value smaller than the row value?).\\nFor an example query executed by a smaller-than filter, please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.smaller_than/4`.\\nThe following filters are supported:\\n\\nFilter | Must be smaller than\\n--- | ---\\n`balance_sm` | `balance`\\n`inserted_before` | `inserted_at`\\n\\n## Greater-than-or-equal-to filters\\n\\nGreater-than-or-equals filters are compared relatively (is the filter value greater than or equal to the row value?).\\nFor an example query executed by a greater-than-or-equals filter, please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.greater_than_or_equals/4`.\\nThe following filters are supported:\\n\\nFilter | Must be greater than or equal to\\n--- | ---\\n`balance_gte` | `balance`\\n`inserted_at_or_after` | `inserted_at`\\n\\n## Order-by filters\\n\\nOrder-by filters take an argument of format `{:field, :direction}`, so for example\\n`{:username, :desc}`, and sort the result set.\\nFor an example query executed by an order-by filter, please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.order_by/4`.\\nThe following fields are supported:\\n* `address`\\n* `balance`\\n* `id`\\n* `username`\\n\\nThe supported directions can be found in `t:PhoenixApiToolkit.Ecto.GenericQueries.order_directions/0`.\\n\\n## Pagination filters\\n\\nThe pagination filters are `limit` and `offset`.\\nFor example queries executed by the pagination filters,\\nplease refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.limit/2` and\\n`PhoenixApiToolkit.Ecto.GenericQueries.offset/2`, respectively.\\n"
+      "## Literal filters\\n\\nLiteral filters are compared for equality (is the filter value equal to the row's value?).\\nFor an example query executed by a literal filter, please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.equals/4`.\\nThe following filters are supported:\\n* `address`\\n* `balance`\\n* `group_name`\\n* `id`\\n* `username`\\n\\n## Set filters\\n\\nSet filters are compared for set membership (is the filter value a member of the row's set?).\\nFor an example query executed by a set filter, please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.member_of/4`.\\nThe following filters are supported:\\n* `roles`\\n\\n## Smaller-than filters\\n\\nSmaller-than filters are compared relatively (is the filter value smaller than the row value?).\\nFor an example query executed by a smaller-than filter, please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.smaller_than/4`.\\nThe following filters are supported:\\n\\nFilter | Must be smaller than\\n--- | ---\\n`balance_lt` | `balance`\\n`inserted_before` | `inserted_at`\\n\\n## Greater-than-or-equal-to filters\\n\\nGreater-than-or-equals filters are compared relatively (is the filter value greater than or equal to the row value?).\\nFor an example query executed by a greater-than-or-equals filter, please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.greater_than_or_equals/4`.\\nThe following filters are supported:\\n\\nFilter | Must be greater than or equal to\\n--- | ---\\n`balance_gte` | `balance`\\n`inserted_at_or_after` | `inserted_at`\\n\\n## Order-by filters\\n\\nOrder-by filters take an argument of format `{:field, :direction}`, so for example\\n`{:username, :desc}`, and sort the result set.\\nFor an example query executed by an order-by filter, please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.order_by/4`.\\nThe following fields are supported:\\n* `address`\\n* `balance`\\n* `id`\\n* `username`\\n\\nThe supported directions can be found in `t:PhoenixApiToolkit.Ecto.GenericQueries.order_directions/0`.\\n\\n## Pagination filters\\n\\nThe pagination filters are `limit` and `offset`.\\nFor example queries executed by the pagination filters,\\nplease refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.limit/2` and\\n`PhoenixApiToolkit.Ecto.GenericQueries.offset/2`, respectively.\\n"
 
   Which will be rendered as:
 
@@ -142,7 +142,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
   >
   > Filter | Must be smaller than
   > --- | ---
-  > `balance_sm` | `balance`
+  > `balance_lt` | `balance`
   > `inserted_before` | `inserted_at`
   >
   > ## Greater-than-or-equal-to filters

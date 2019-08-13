@@ -10,7 +10,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFiltersTest do
     sets: [:roles],
     smaller_than: [
       inserted_before: :inserted_at,
-      balance_sm: :balance
+      balance_lt: :balance
     ],
     greater_than_or_equals: [
       inserted_at_or_after: :inserted_at,
