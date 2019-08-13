@@ -78,7 +78,7 @@ defmodule PhoenixApiToolkit.GenericRequestValidator do
 
   Additional fields can be passed along to the `extra_fields` parameter. Fields that
   can (usefully) be compared with smaller than / greater than comparisons can be passed
-  in `comparables`. The value you pass AND a "_sm" (smaller than) and "_gte"
+  in `comparables`. The value you pass AND a "_lt" (smaller than) and "_gte"
   (greater than or equal to) variant will be added to the schema.
 
   ## Examples
@@ -91,8 +91,8 @@ defmodule PhoenixApiToolkit.GenericRequestValidator do
       iex> resource_schema(%{first_name: :string})
       {%{}, %{first_name: :string, id: :integer, limit: :integer, lock_version: :integer, offset: :integer, order_by: :string}}
 
-      # fields passed to the "comparables" parameter are added literally AND with _sm and _gte variants
-      iex> resource_schema(%{}, %{date_of_birth: :date}) |> elem(1) |> Map.has_key?(:date_of_birth_sm)
+      # fields passed to the "comparables" parameter are added literally AND with _lt and _gte variants
+      iex> resource_schema(%{}, %{date_of_birth: :date}) |> elem(1) |> Map.has_key?(:date_of_birth_lt)
       true
   """
   @spec resource_schema(map) :: schema
@@ -108,7 +108,7 @@ defmodule PhoenixApiToolkit.GenericRequestValidator do
       }
       |> Map.merge(extra_fields)
       |> Map.merge(comparables)
-      |> Map.merge(comparables |> create_comparables("sm"))
+      |> Map.merge(comparables |> create_comparables("lt"))
       |> Map.merge(comparables |> create_comparables("gte"))
     }
   end
