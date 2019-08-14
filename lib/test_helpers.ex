@@ -5,152 +5,168 @@ defmodule PhoenixApiToolkit.TestHelpers do
   alias Plug.Conn
   require Logger
 
-  @doc """
-  Returns an example jwks for use by `gen_jwt/2`, as base64-encoded JSON.
+  if Code.ensure_loaded?(:jose) do
+    @doc """
+    Returns an example jwks for use by `gen_jwt/2`, as base64-encoded JSON.
 
-  ## Examples
+    ## Examples
 
-      # the keyset is returned as base64-encoded JSON string with a list of keys
-      iex> test_jwks() |> Base.decode64!() |> Jason.decode!() |> List.first() |> Map.get("kid")
-      "my_test_key"
-  """
-  @spec test_jwks :: binary
-  def test_jwks() do
+        # the keyset is returned as base64-encoded JSON string with a list of keys
+        iex> test_jwks() |> Base.decode64!() |> Jason.decode!() |> List.first() |> Map.get("kid")
+        "my_test_key"
     """
-    [
-      {
-        "kty": "RSA",
-        "d": "PHxWm6NfF7KucMLkInmy07mPYOCAbd-Kv5Su25dGNYxm3iWqzByIl-CHk-rBdI5lOg7w3QQgXUynjjRSQPpUEx6Na6gokMOeWET-xXVx3MTlSItO_iEx0V_UpY6jrKAxM1Mp-IQOxzwyAAg2SxCgNdhinzpn8Fj-71ezrAfDUfPOWq0hVzvTwcG_mJdbuYbVYh19EXRv3kY-FKssJS8OqoZwSKF6xcmTND8kixXaFZ86fjI9xuh1Nuk-fU7kdO4LHCnAHsi0Vpaou0AfSXHjsM1A31_K79aeV6fP40hzDgLpmHLhN4CywqpI0v4A-8wXlp1474B0Ut8P_QfwWfudoQ",
-        "e": "AQAB",
-        "use": "sig",
-        "kid": "my_test_key",
-        "alg": "RS256",
-        "n": "oIU4cfgBMV-HSXshwcyocv0pINmgYjDfvaYQpsGkw0o3xv1ttMDS27f31fpQCvIIu7fBWDfzqG9DBzQTVilqIvZVbAD_W0IJGcD7jreqhTI_MC3bQWIePAn5BwK9ONE23V6Q5jK556tsIpBjOGna2fi6Qr__x5236kH7lMNsBqxTK3kNRkrLlKUwni419Jpgh9A5Gl3pfSKjvtEDA3FLaWzUHzuoizUr9VnKwxpe4rKx0boQgxsCteBp1-sOLegRSeYvzK9x3p9XEUxEdUlQw_SiPUKC5XlMfbIWcTrSCR9SztTqa6I6COu3ohdwryna2oPcm2sS4M_T9jfzzb8Nkw"
-      }
-    ]
-    """
-    |> Base.encode64()
-  end
+    @spec test_jwks :: binary
+    def test_jwks() do
+      """
+      [
+        {
+          "kty": "RSA",
+          "d": "PHxWm6NfF7KucMLkInmy07mPYOCAbd-Kv5Su25dGNYxm3iWqzByIl-CHk-rBdI5lOg7w3QQgXUynjjRSQPpUEx6Na6gokMOeWET-xXVx3MTlSItO_iEx0V_UpY6jrKAxM1Mp-IQOxzwyAAg2SxCgNdhinzpn8Fj-71ezrAfDUfPOWq0hVzvTwcG_mJdbuYbVYh19EXRv3kY-FKssJS8OqoZwSKF6xcmTND8kixXaFZ86fjI9xuh1Nuk-fU7kdO4LHCnAHsi0Vpaou0AfSXHjsM1A31_K79aeV6fP40hzDgLpmHLhN4CywqpI0v4A-8wXlp1474B0Ut8P_QfwWfudoQ",
+          "e": "AQAB",
+          "use": "sig",
+          "kid": "my_test_key",
+          "alg": "RS256",
+          "n": "oIU4cfgBMV-HSXshwcyocv0pINmgYjDfvaYQpsGkw0o3xv1ttMDS27f31fpQCvIIu7fBWDfzqG9DBzQTVilqIvZVbAD_W0IJGcD7jreqhTI_MC3bQWIePAn5BwK9ONE23V6Q5jK556tsIpBjOGna2fi6Qr__x5236kH7lMNsBqxTK3kNRkrLlKUwni419Jpgh9A5Gl3pfSKjvtEDA3FLaWzUHzuoizUr9VnKwxpe4rKx0boQgxsCteBp1-sOLegRSeYvzK9x3p9XEUxEdUlQw_SiPUKC5XlMfbIWcTrSCR9SztTqa6I6COu3ohdwryna2oPcm2sS4M_T9jfzzb8Nkw"
+        }
+      ]
+      """
+      |> Base.encode64()
+    end
 
-  @typedoc "Options for use by `gen_jwt/2`"
-  @type gen_jwt_opts :: [
-          jwk: map(),
-          payload: map(),
-          jws: map()
-        ]
+    @typedoc "Options for use by `gen_jwt/2`"
+    @type gen_jwt_opts :: [
+            jwk: map(),
+            payload: map(),
+            jws: map()
+          ]
 
-  @typedoc "Defaults for use by `gen_jwt/2`"
-  @type gen_jwt_defaults :: %{
-          jwk: map(),
-          payload: map(),
-          jws: map()
+    @typedoc "Defaults for use by `gen_jwt/2`"
+    @type gen_jwt_defaults :: %{
+            jwk: map(),
+            payload: map(),
+            jws: map()
+          }
+
+    @doc """
+    Generate a JSON Web Token for testing purposes, with an "exp" claim 5 minutes in the future.
+    It is possible to override parts of the signing key, payload and signature to test with different
+    scopes, expiration times, issuers, key ID's etc, override the entire signing key, payload or signature.
+    The defaults should generate a valid JWT. For use with endpoints secured with `PhoenixApiToolkit.Security.Oauth2Plug`.
+
+    ## Examples
+
+        @jwt_defaults %{
+          jwk: gen_jwk(),
+          jws: gen_jws(),
+          payload: gen_payload(iss: "http://my-oauth2-provider")
         }
 
-  @doc """
-  Generate a JSON Web Token for testing purposes, with an "exp" claim 5 minutes in the future.
-  It is possible to override parts of the signing key, payload and signature to test with different
-  scopes, expiration times, issuers, key ID's etc, override the entire signing key, payload or signature.
-  The defaults should generate a valid JWT. For use with endpoints secured with `PhoenixApiToolkit.Security.Oauth2Plug`.
+        # the defaults as created above generate a valid JWT, provided that the claims match those verified
+        # the header, payload and signature can be inspected using JOSE.JWS.peek* functions
+        iex> jwt = gen_jwt(@jwt_defaults)
+        iex> jwt |> JOSE.JWS.peek_protected() |> Jason.decode!()
+        %{"alg" => "RS256", "kid" => "my_test_key", "typ" => "JWT"}
+        iex> jwt |> JOSE.JWS.peek_payload() |> Jason.decode!() |> Map.drop(["exp"])
+        %{"iss" => "http://my-oauth2-provider"}
 
-  ## Examples
+        # parts of the jwk, payload and jws can be overridden for testing purposes
+        iex> gen_jwt(@jwt_defaults, payload: [iss: "boom"]) |> JOSE.JWS.peek_payload() |> Jason.decode!() |> Map.drop(["exp"])
+        %{"iss" => "boom"}
+        iex> gen_jwt(@jwt_defaults, jws: [kid: "other key"]) |> JOSE.JWS.peek_protected() |> Jason.decode!()
+        %{"alg" => "RS256", "kid" => "other key", "typ" => "JWT"}
+        iex> gen_jwt(@jwt_defaults, payload: [exp: 12345]) |> JOSE.JWS.peek_payload() |> Jason.decode!() |> Map.get("exp")
+        12345
+    """
+    @spec gen_jwt(gen_jwt_defaults, gen_jwt_opts) :: binary
+    def gen_jwt(defaults, overrides \\ []) do
+      jwk = defaults.jwk |> Map.merge((overrides[:jwk] || []) |> Map.new() |> to_string_map())
+      jws = defaults.jws |> Map.merge((overrides[:jws] || []) |> Map.new() |> to_string_map())
 
-      @jwt_defaults %{
-        jwk: gen_jwk(),
-        jws: gen_jws(),
-        payload: gen_payload(iss: "http://my-oauth2-provider")
-      }
+      payload =
+        defaults.payload
+        |> Map.merge(%{"exp" => (DateTime.utc_now() |> DateTime.to_unix(:second)) + 300})
+        |> Map.merge((overrides[:payload] || []) |> Map.new() |> to_string_map())
 
-      # the defaults as created above generate a valid JWT, provided that the claims match those verified
-      # the header, payload and signature can be inspected using JOSE.JWS.peek* functions
-      iex> jwt = gen_jwt(@jwt_defaults)
-      iex> jwt |> JOSE.JWS.peek_protected() |> Jason.decode!()
-      %{"alg" => "RS256", "kid" => "my_test_key", "typ" => "JWT"}
-      iex> jwt |> JOSE.JWS.peek_payload() |> Jason.decode!() |> Map.drop(["exp"])
-      %{"iss" => "http://my-oauth2-provider"}
+      JOSE.JWT.sign(jwk, jws, payload)
+      |> JOSE.JWS.compact()
+      |> elem(1)
+    end
 
-      # parts of the jwk, payload and jws can be overridden for testing purposes
-      iex> gen_jwt(@jwt_defaults, payload: [iss: "boom"]) |> JOSE.JWS.peek_payload() |> Jason.decode!() |> Map.drop(["exp"])
-      %{"iss" => "boom"}
-      iex> gen_jwt(@jwt_defaults, jws: [kid: "other key"]) |> JOSE.JWS.peek_protected() |> Jason.decode!()
-      %{"alg" => "RS256", "kid" => "other key", "typ" => "JWT"}
-      iex> gen_jwt(@jwt_defaults, payload: [exp: 12345]) |> JOSE.JWS.peek_payload() |> Jason.decode!() |> Map.get("exp")
-      12345
-  """
-  @spec gen_jwt(gen_jwt_defaults, gen_jwt_opts) :: binary
-  def gen_jwt(defaults, overrides \\ []) do
-    jwk = defaults.jwk |> Map.merge((overrides[:jwk] || []) |> Map.new() |> to_string_map())
-    jws = defaults.jws |> Map.merge((overrides[:jws] || []) |> Map.new() |> to_string_map())
+    @doc """
+    Generate a JSON Web Key for testing purposes. See `gen_jwt/2` for details.
 
-    payload =
-      defaults.payload
-      |> Map.merge(%{"exp" => (DateTime.utc_now() |> DateTime.to_unix(:second)) + 300})
-      |> Map.merge((overrides[:payload] || []) |> Map.new() |> to_string_map())
+    The default is the first key of `test_jwks/0`.
 
-    JOSE.JWT.sign(jwk, jws, payload)
-    |> JOSE.JWS.compact()
-    |> elem(1)
-  end
+    ## Examples
 
-  @doc """
-  Generate a JSON Web Key for testing purposes. See `gen_jwt/2` for details.
+        iex> gen_jwk()["kid"]
+        "my_test_key"
 
-  The default is the first key of `test_jwks/0`.
+        iex> gen_jwk(kid: "other key")["kid"]
+        "other key"
+    """
+    @spec gen_jwk(map | keyword) :: map
+    def gen_jwk(overrides \\ []) do
+      Map.merge(
+        test_jwks() |> Base.decode64!() |> Jason.decode!() |> List.first(),
+        overrides |> Map.new() |> to_string_map()
+      )
+    end
 
-  ## Examples
+    @doc """
+    Generate a JSON Web Token payload for testing purposes. See `gen_jwt/2` for details.
 
-      iex> gen_jwk()["kid"]
-      "my_test_key"
+    The default payload is empty.
 
-      iex> gen_jwk(kid: "other key")["kid"]
-      "other key"
-  """
-  @spec gen_jwk(map | keyword) :: map
-  def gen_jwk(overrides \\ []) do
-    Map.merge(
-      test_jwks() |> Base.decode64!() |> Jason.decode!() |> List.first(),
+    ## Examples
+
+        iex> gen_payload()
+        %{}
+
+        iex> gen_payload(iss: "something")["iss"]
+        "something"
+    """
+    @spec gen_payload(map | keyword) :: map
+    def gen_payload(overrides \\ []) do
       overrides |> Map.new() |> to_string_map()
-    )
-  end
+    end
 
-  @doc """
-  Generate a JSON Web Token payload for testing purposes. See `gen_jwt/2` for details.
+    @doc """
+    Generate a JSON Web Signature for testing purposes. See `gen_jwt/2` for details.
 
-  The default payload is empty.
+    The defaults are the "alg" and "kid" values of the first key of `test_jwks/0`.
 
-  ## Examples
+    ## Examples
 
-      iex> gen_payload()
-      %{}
+    iex> gen_jws()
+    %{"alg" => "RS256", "kid" => "my_test_key"}
 
-      iex> gen_payload(iss: "something")["iss"]
-      "something"
-  """
-  @spec gen_payload(map | keyword) :: map
-  def gen_payload(overrides \\ []) do
-    overrides |> Map.new() |> to_string_map()
-  end
+    iex> gen_jws(alg: "RS512")["alg"]
+    "RS512"
+    """
+    @spec gen_jws(map | keyword) :: map
+    def gen_jws(overrides \\ []) do
+      default_jwk = test_jwks() |> Base.decode64!() |> Jason.decode!() |> List.first()
 
-  @doc """
-  Generate a JSON Web Signature for testing purposes. See `gen_jwt/2` for details.
+      Map.merge(
+        %{"alg" => default_jwk["alg"], "kid" => default_jwk["kid"]},
+        overrides |> Map.new() |> to_string_map()
+      )
+    end
 
-  The defaults are the "alg" and "kid" values of the first key of `test_jwks/0`.
+    @doc """
+    Add JWT to the conn. A valid, signed JWT can be generated by `gen_jwt/2`.
 
-  ## Examples
+    ## Examples
 
-      iex> gen_jws()
-      %{"alg" => "RS256", "kid" => "my_test_key"}
+        use Plug.Test
 
-      iex> gen_jws(alg: "RS512")["alg"]
-      "RS512"
-  """
-  @spec gen_jws(map | keyword) :: map
-  def gen_jws(overrides \\ []) do
-    default_jwk = test_jwks() |> Base.decode64!() |> Jason.decode!() |> List.first()
-
-    Map.merge(
-      %{"alg" => default_jwk["alg"], "kid" => default_jwk["kid"]},
-      overrides |> Map.new() |> to_string_map()
-    )
+        iex> conn(:get, "/") |> put_jwt("my_jwt") |> get_req_header("authorization")
+        ["Bearer: my_jwt"]
+    """
+    @spec put_jwt(Conn.t(), binary()) :: Conn.t()
+    def put_jwt(conn, jwt),
+      do: conn |> Conn.put_req_header("authorization", "Bearer: #{jwt}")
   end
 
   @doc """
@@ -229,20 +245,6 @@ defmodule PhoenixApiToolkit.TestHelpers do
   def put_raw_body(%{adapter: {adapter, state}} = conn, raw_body) do
     conn |> Map.put(:adapter, {adapter, Map.put(state, :req_body, raw_body)})
   end
-
-  @doc """
-  Add JWT to the conn. A valid, signed JWT can be generated by `gen_jwt/2`.
-
-  ## Examples
-
-      use Plug.Test
-
-      iex> conn(:get, "/") |> put_jwt("my_jwt") |> get_req_header("authorization")
-      ["Bearer: my_jwt"]
-  """
-  @spec put_jwt(Conn.t(), binary()) :: Conn.t()
-  def put_jwt(conn, jwt),
-    do: conn |> Conn.put_req_header("authorization", "Bearer: #{jwt}")
 
   @doc """
   Remove volatile fields from maps in the data.

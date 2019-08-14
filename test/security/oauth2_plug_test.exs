@@ -44,8 +44,10 @@ defmodule PhoenixApiToolkit.Security.Oauth2PlugTest do
       mandatory_params = [:keyset, :exp_iss, :alg_whitelist]
 
       for param <- mandatory_params do
-        assert_raise ArgumentError, "key \"#{param}\" not found", fn ->
-          @opts |> Map.drop([param]) |> Keyword.new() |> Oauth2Plug.init()
+        opts = @opts |> Map.drop([param]) |> Keyword.new()
+
+        assert_raise KeyError, "key :#{param} not found in: #{inspect(opts)}", fn ->
+          opts |> Oauth2Plug.init()
         end
       end
     end

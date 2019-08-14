@@ -70,7 +70,6 @@ defmodule PhoenixApiToolkit.Security.HmacPlug do
 
   @behaviour Plug
   import Plug.Conn
-  import PhoenixApiToolkit.Utils
   alias PhoenixApiToolkit.Security.HmacVerificationError
   alias PhoenixApiToolkit.CacheBodyReader
   require Logger
@@ -81,7 +80,7 @@ defmodule PhoenixApiToolkit.Security.HmacPlug do
     opts = Keyword.new(opts)
 
     %{
-      hmac_secret: get_keyword!(opts, :hmac_secret),
+      hmac_secret: Keyword.fetch!(opts, :hmac_secret),
       max_age: Keyword.get(opts, :max_age, 120),
       hash_algorithm: Keyword.get(opts, :hash_algorithm, :sha256)
     }

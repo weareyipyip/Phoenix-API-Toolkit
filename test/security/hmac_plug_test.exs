@@ -25,8 +25,10 @@ defmodule PhoenixApiToolkit.Security.HmacPlugTest do
       mandatory_params = [:hmac_secret]
 
       for param <- mandatory_params do
-        assert_raise ArgumentError, "key \"#{param}\" not found", fn ->
-          @opts |> Map.drop([param]) |> Keyword.new() |> HmacPlug.init()
+        opts = @opts |> Map.drop([param]) |> Keyword.new()
+
+        assert_raise KeyError, "key :#{param} not found in: #{inspect(opts)}", fn ->
+          opts |> HmacPlug.init()
         end
       end
     end
