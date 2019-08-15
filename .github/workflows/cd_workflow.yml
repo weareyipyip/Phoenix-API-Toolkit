@@ -1,0 +1,46 @@
+name: CD / Publish release
+on:
+  create:
+    tags:
+      - v*
+
+jobs:
+  pre_release_checks:
+    name: Pre-release checks
+    runs-on: ubuntu-latest    
+    steps:
+      - name: DevOps members only
+        if: github.actor != 'TimPelgrim' && github.actor != 'EvertVerboven' && github.actor != 'juulSme'
+        run: exit 1
+
+
+  deploy:
+    name: Publish release
+    needs: pre_release_checks    
+    runs-on: ubuntu-latest
+    container:
+      # alpine causes errors in the steps, the container exits immediately, apparently
+      image: elixir:1.9-slim
+    steps:
+      - name: Display build environment
+        run: printenv
+      - name: Checkout code
+        uses: actions/checkout@master
+      - name: Install dependencies
+        run: mix do local.hex --force, local.rebar --force, deps.get
+      - name: Compile code (warnings as errors)
+        run: mix compile --warnings-as-errors
+      - name: Check that versions match in tag, readme and mix.exs
+        run: mix run check_versions.exs
+      - name: Check code formatting
+        run: mix format --check-formatted
+      - name: Run tests (with coverage)
+        run: mix test --cover
+      - name: Run dialyzer
+        run: mix dialyzer --halt-exit-status
+      - name: Create docs
+        run: mix docs
+      - name: Publish release
+        run: mix hex.publish --yes
+        env:
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
