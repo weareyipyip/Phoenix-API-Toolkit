@@ -152,14 +152,20 @@ defmodule PhoenixApiToolkit.GenericRequestValidator do
       iex> path_param(%{"id" => "boom"}) |> elem(0)
       :error
 
+      # "id" must be greater than 0
+      iex> path_param(%{"id" => 0}) |> elem(0)
+      :error
+
       iex> path_param(%{"id" => 1}) |> elem(0)
       :ok
+
   """
   @spec path_param(map()) :: {:error, Ecto.Changeset.t()} | {:ok, map()}
   def path_param(attrs) do
     {%{}, %{id: :integer}}
     |> cast(attrs, [:id])
     |> validate_required([:id])
+    |> validate_number(:id, greater_than: 0)
     |> to_tuple()
   end
 

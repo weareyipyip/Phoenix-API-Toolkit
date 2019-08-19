@@ -131,11 +131,13 @@ defmodule PhoenixApiToolkit.Security.Oauth2PlugTest do
   end
 
   describe "Oauth2 plug in dummy verification mode" do
+    @tag :capture_log
     test "should allow incorrectly signed requests" do
       jwt = gen_jwt(@jwt_defaults, jwk: @other_keypair)
       assert %Plug.Conn{} = conn(:get, "/") |> put_jwt(jwt) |> Oauth2Plug.call(@dummy_opts)
     end
 
+    @tag :capture_log
     test "should reject a request with a malformed bearer token JWT" do
       expect_token_error(["invalid jwt"], "could not decode JWT", @dummy_opts)
     end
