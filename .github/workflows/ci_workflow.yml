@@ -1,8 +1,7 @@
 name: CI / Automated testing
 on:
   push:
-    tags:
-      - '!refs/tags/*'
+    branches:
 
 jobs:
   ci_1_7:
