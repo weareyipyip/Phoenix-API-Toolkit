@@ -1,8 +1,7 @@
 name: CD / Publish release
 on:
   release:
-    tags:
-      - v*
+    types: [published]
 
 jobs:
   deploy:
@@ -13,34 +12,25 @@ jobs:
       image: elixir:1.9-slim
     steps:
       - name: Display build environment
-        if: github.event.action == 'published' && (github.actor == 'TimPelgrim' || github.actor == 'EvertVerboven' || github.actor == 'juulSme')
         run: printenv
       - name: Checkout code
-        if: github.event.action == 'published' && (github.actor == 'TimPelgrim' || github.actor == 'EvertVerboven' || github.actor == 'juulSme')
         uses: actions/checkout@master
       - name: Install dependencies
-        if: github.event.action == 'published' && (github.actor == 'TimPelgrim' || github.actor == 'EvertVerboven' || github.actor == 'juulSme')
         run: mix do local.hex --force, local.rebar --force, deps.get
       - name: Compile code (warnings as errors)
-        if: github.event.action == 'published' && (github.actor == 'TimPelgrim' || github.actor == 'EvertVerboven' || github.actor == 'juulSme')
         run: mix compile --warnings-as-errors
       - name: Check that versions match in tag, readme and mix.exs
-        if: github.event.action == 'published' && (github.actor == 'TimPelgrim' || github.actor == 'EvertVerboven' || github.actor == 'juulSme')
         run: mix run check_versions.exs
       - name: Check code formatting
-        if: github.event.action == 'published' && (github.actor == 'TimPelgrim' || github.actor == 'EvertVerboven' || github.actor == 'juulSme')
         run: mix format --check-formatted
       - name: Run tests (with coverage)
-        if: github.event.action == 'published' && (github.actor == 'TimPelgrim' || github.actor == 'EvertVerboven' || github.actor == 'juulSme')
         run: mix test --cover
       - name: Run dialyzer
-        if: github.event.action == 'published' && (github.actor == 'TimPelgrim' || github.actor == 'EvertVerboven' || github.actor == 'juulSme')
         run: mix dialyzer --halt-exit-status
       - name: Create docs
-        if: github.event.action == 'published' && (github.actor == 'TimPelgrim' || github.actor == 'EvertVerboven' || github.actor == 'juulSme')
         run: mix docs
       - name: Publish release
-        if: github.event.action == 'published' && (github.actor == 'TimPelgrim' || github.actor == 'EvertVerboven' || github.actor == 'juulSme')
+        if: (github.actor == 'TimPelgrim' || github.actor == 'EvertVerboven' || github.actor == 'juulSme')
         run: mix hex.publish --yes
         env:
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
