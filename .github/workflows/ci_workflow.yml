@@ -22,18 +22,18 @@ jobs:
         uses: actions/cache@v1
         with:
           path: deps
-          key: deps-${ELIXIR}-${{ hashFiles('**/mix.lock') }}
+          key: deps-${{ env.ELIXIR }}-${{ hashFiles('**/mix.lock') }}
           restore-keys: |
-            deps-${ELIXIR}-${{ hashFiles('**/mix.lock') }}
-            deps-${ELIXIR}-
+            deps-${{ env.ELIXIR }}-${{ hashFiles('**/mix.lock') }}
+            deps-${{ env.ELIXIR }}-
       - name: Cache build
         uses: actions/cache@v1
         with:
           path: _build
-          key: build-${ELIXIR}-${{ hashFiles('**/mix.lock') }}
+          key: build-${{ env.ELIXIR }}-${{ hashFiles('**/mix.lock') }}
           restore-keys: |
-            build-${ELIXIR}-${{ hashFiles('**/mix.lock') }}
-            build-${ELIXIR}
+            build-${{ env.ELIXIR }}-${{ hashFiles('**/mix.lock') }}
+            build-${{ env.ELIXIR }}
       - name: Display build environment
         run: printenv
       - name: Install dependencies
