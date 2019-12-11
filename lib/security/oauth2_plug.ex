@@ -41,55 +41,58 @@ if Code.ensure_loaded?(:jose) do
           payload: gen_payload(iss: "http://my-oauth2-provider")
         }
 
-        @opts Oauth2Plug.init(
-                keyset: test_jwks(),
-                exp_iss: @jwt_defaults.payload["iss"],
-                dummy_verify: false,
-                alg_whitelist: ["RS256"]
-              )
+        def opts do
+          Oauth2Plug.init(
+            lazy_keyset: fn -> test_jwks() |> Oauth2Plug.process_jwks() end,
+            lazy_exp_iss: fn -> @jwt_defaults.payload["iss"] end,
+            dummy_verify: false,
+            alg_whitelist: ["RS256"]
+          )
+        end
 
-        # a correctly signed request is passed through, with the JWT's payload and JWS assigned
+        a correctly signed request is passed through, with the JWT's payload and JWS assigned
         iex> conn = conn(:get, "/")
         iex> jwt = gen_jwt(@jwt_defaults)
-        iex> result = conn |> put_jwt(jwt) |> Oauth2Plug.call(@opts)
+        iex> result = conn |> put_jwt(jwt) |> Oauth2Plug.call(opts())
         iex> result == conn |> put_jwt(jwt) |> assign(:jwt, result.assigns.jwt) |> assign(:jws, result.assigns.jws)
         true
 
         # requests that are noncompliant result in an Oauth2TokenVerificationError
-        iex> conn(:get, "/") |> Oauth2Plug.call(@opts)
+        iex> conn(:get, "/") |> Oauth2Plug.call(opts())
         ** (PhoenixApiToolkit.Security.Oauth2TokenVerificationError) Oauth2 token invalid: missing authorization header
 
-        iex> conn(:get, "/") |> put_jwt("invalid") |> Oauth2Plug.call(@opts)
+        iex> conn(:get, "/") |> put_jwt("invalid") |> Oauth2Plug.call(opts())
         ** (PhoenixApiToolkit.Security.Oauth2TokenVerificationError) Oauth2 token invalid: could not decode JWT
     """
-
-    @behaviour Plug
-
     alias Plug.Conn
     alias PhoenixApiToolkit.Security.Oauth2TokenVerificationError
     require Logger
 
-    @impl Plug
     @doc false
     def init(opts) do
       opts = Keyword.new(opts)
 
       %{
-        exp_iss: Keyword.fetch!(opts, :exp_iss),
+        lazy_exp_iss: Keyword.fetch!(opts, :lazy_exp_iss),
         dummy_verify: Keyword.get(opts, :dummy_verify, false),
         alg_whitelist: Keyword.fetch!(opts, :alg_whitelist),
-        keyset: Keyword.fetch!(opts, :keyset) |> process_jwks()
+        lazy_keyset: Keyword.fetch!(opts, :lazy_keyset)
       }
     end
 
-    @impl Plug
     @doc false
-    def call(conn, %{
-          keyset: keyset,
-          exp_iss: exp_iss,
-          dummy_verify: dummy_verify,
-          alg_whitelist: alg_whitelist
-        }) do
+    def call(
+          conn,
+          %{
+            lazy_keyset: lazy_keyset,
+            lazy_exp_iss: lazy_exp_iss,
+            dummy_verify: dummy_verify,
+            alg_whitelist: alg_whitelist
+          }
+        ) do
+      keyset = lazy_keyset.()
+      exp_iss = lazy_exp_iss.()
+
       with {:ok, raw_jwt} <- parse_auth_header(conn),
            {true, jwt, jws} <- verify_jwt(raw_jwt, keyset, alg_whitelist, dummy_verify),
            :ok <- verify_exp(jwt),
@@ -104,17 +107,20 @@ if Code.ensure_loaded?(:jose) do
       end
     end
 
-    ############
-    # Privates #
-    ############
-
-    defp process_jwks(jwks) do
+    @doc """
+    Process a jwks string to pass to `&call/2`.
+    """
+    def process_jwks(jwks) do
       jwks
       |> Base.decode64!()
       |> Jason.decode!()
       |> Stream.map(&JOSE.JWK.from/1)
       |> Map.new(fn jwk -> {jwk.fields["kid"], jwk} end)
     end
+
+    ############
+    # Privates #
+    ############
 
     defp parse_auth_header(conn) do
       with [auth_header] <- Conn.get_req_header(conn, "authorization"),
