@@ -7,16 +7,32 @@ jobs:
   ci_1_7:
     name: Elixir 1.7 CI
     runs-on: ubuntu-latest
+    env:
+      MIX_ENV: test
+      ELIXIR: "1.7"
 
     container:
-      # alpine causes errors in the steps, the container exits immediately, apparently
-      image: elixir:1.7-slim
-      env:
-        MIX_ENV: test
+      image: elixir:1.7-alpine
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@master
+        uses: actions/checkout@v1
+      - name: Cache deps
+        uses: actions/cache@v1
+        with:
+          path: deps
+          key: deps-${{ env.ELIXIR }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            deps-${{ env.ELIXIR }}-${{ hashFiles('**/mix.lock') }}
+            deps-${{ env.ELIXIR }}-
+      - name: Cache build
+        uses: actions/cache@v1
+        with:
+          path: _build
+          key: build-${{ env.ELIXIR }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            build-${{ env.ELIXIR }}-${{ hashFiles('**/mix.lock') }}
+            build-${{ env.ELIXIR }}
       - name: Display build environment
         run: printenv
       - name: Install dependencies
@@ -29,20 +45,38 @@ jobs:
         run: mix test --cover
       - name: Create docs
         run: mix docs
+      - name: Run dialyzer
+        run: mix dialyzer
 
   ci_1_9:
     name: Elixir 1.9 CI
     runs-on: ubuntu-latest
+    env:
+      MIX_ENV: test
+      ELIXIR: "1.9"
 
     container:
-      # alpine causes errors in the steps, the container exits immediately, apparently
-      image: elixir:1.9-slim
-      env:
-        MIX_ENV: test
+      image: elixir:1.9-alpine
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@master
+        uses: actions/checkout@v1
+      - name: Cache deps
+        uses: actions/cache@v1
+        with:
+          path: deps
+          key: deps-${{ env.ELIXIR }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            deps-${{ env.ELIXIR }}-${{ hashFiles('**/mix.lock') }}
+            deps-${{ env.ELIXIR }}-
+      - name: Cache build
+        uses: actions/cache@v1
+        with:
+          path: _build
+          key: build-${{ env.ELIXIR }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            build-${{ env.ELIXIR }}-${{ hashFiles('**/mix.lock') }}
+            build-${{ env.ELIXIR }}
       - name: Display build environment
         run: printenv
       - name: Install dependencies
@@ -55,3 +89,5 @@ jobs:
         run: mix test --cover
       - name: Create docs
         run: mix docs
+      - name: Run dialyzer
+        run: mix dialyzer

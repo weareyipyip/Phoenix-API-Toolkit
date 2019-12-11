@@ -8,7 +8,8 @@ defmodule PhoenixApiToolkit.Security.HmacPlugTest do
   import PhoenixApiToolkit.CacheBodyReader
 
   @secret "supersecretkey"
-  @opts HmacPlug.init(hmac_secret: @secret)
+
+  def opts, do: HmacPlug.init(lazy_hmac_secret: fn -> @secret end)
 
   def conn_for_hmac(method, path, raw_body) do
     conn(method, path, raw_body |> Jason.decode!())
@@ -22,10 +23,10 @@ defmodule PhoenixApiToolkit.Security.HmacPlugTest do
 
   describe "HMAC plug" do
     test "init raises if mandatory parameters are missing" do
-      mandatory_params = [:hmac_secret]
+      mandatory_params = [:lazy_hmac_secret]
 
       for param <- mandatory_params do
-        opts = @opts |> Map.drop([param]) |> Keyword.new()
+        opts = opts() |> Map.drop([param]) |> Keyword.new()
 
         assert_raise KeyError, "key :#{param} not found in: #{inspect(opts)}", fn ->
           opts |> HmacPlug.init()
@@ -37,7 +38,7 @@ defmodule PhoenixApiToolkit.Security.HmacPlugTest do
       optional_params = [:max_age, :hash_algorithm]
 
       for param <- optional_params do
-        assert %{^param => _} = @opts |> Map.drop([param]) |> Keyword.new() |> HmacPlug.init()
+        assert %{^param => _} = opts() |> Map.drop([param]) |> Keyword.new() |> HmacPlug.init()
       end
     end
 
@@ -46,7 +47,7 @@ defmodule PhoenixApiToolkit.Security.HmacPlugTest do
       {:ok, _, conn} = conn_for_hmac(:post, "/", body) |> cache_and_read_body()
 
       assert_raise HmacVerificationError, error_message("missing authorization header"), fn ->
-        conn |> HmacPlug.call(@opts)
+        conn |> HmacPlug.call(opts())
       end
     end
 
@@ -57,7 +58,7 @@ defmodule PhoenixApiToolkit.Security.HmacPlugTest do
         conn_for_hmac(:post, "/", body) |> put_hmac(body, @secret) |> cache_and_read_body()
 
       assert_raise HmacVerificationError, error_message("hash mismatch"), fn ->
-        conn |> HmacPlug.call(Map.put(@opts, :hash_algorithm, :sha512))
+        conn |> HmacPlug.call(Map.put(opts(), :hash_algorithm, :sha512))
       end
     end
 
@@ -70,7 +71,7 @@ defmodule PhoenixApiToolkit.Security.HmacPlugTest do
         |> cache_and_read_body()
 
       assert_raise HmacVerificationError, error_message("hash mismatch"), fn ->
-        conn |> HmacPlug.call(@opts)
+        conn |> HmacPlug.call(opts())
       end
     end
 
@@ -88,7 +89,7 @@ defmodule PhoenixApiToolkit.Security.HmacPlugTest do
           conn_for_hmac(:post, "/", body) |> put_hmac(body, @secret) |> cache_and_read_body()
 
         assert_raise HmacVerificationError, error_message("#{field} missing"), fn ->
-          conn |> HmacPlug.call(@opts)
+          conn |> HmacPlug.call(opts())
         end
       end
     end
@@ -100,7 +101,7 @@ defmodule PhoenixApiToolkit.Security.HmacPlugTest do
         conn_for_hmac(:post, "/", body) |> put_hmac(body, @secret) |> cache_and_read_body()
 
       assert_raise HmacVerificationError, error_message("path mismatch"), fn ->
-        conn |> HmacPlug.call(@opts)
+        conn |> HmacPlug.call(opts())
       end
     end
 
@@ -111,19 +112,19 @@ defmodule PhoenixApiToolkit.Security.HmacPlugTest do
         conn_for_hmac(:post, "/", body) |> put_hmac(body, @secret) |> cache_and_read_body()
 
       assert_raise HmacVerificationError, error_message("method mismatch"), fn ->
-        conn |> HmacPlug.call(@opts)
+        conn |> HmacPlug.call(opts())
       end
     end
 
     test "should reject a request with an expired timestamp" do
-      timestamp = (DateTime.utc_now() |> DateTime.to_unix()) - @opts[:max_age] - 1
+      timestamp = (DateTime.utc_now() |> DateTime.to_unix()) - opts()[:max_age] - 1
       body = create_hmac_plug_body("/", "POST", %{}, timestamp)
 
       {:ok, _, conn} =
         conn_for_hmac(:post, "/", body) |> put_hmac(body, @secret) |> cache_and_read_body()
 
       assert_raise HmacVerificationError, error_message("expired"), fn ->
-        conn |> HmacPlug.call(@opts)
+        conn |> HmacPlug.call(opts())
       end
     end
 
@@ -133,7 +134,7 @@ defmodule PhoenixApiToolkit.Security.HmacPlugTest do
       {:ok, _, conn} =
         conn_for_hmac(:post, "/", body) |> put_hmac(body, @secret) |> cache_and_read_body()
 
-      assert %Plug.Conn{} = conn |> HmacPlug.call(@opts)
+      assert %Plug.Conn{} = conn |> HmacPlug.call(opts())
     end
   end
 end

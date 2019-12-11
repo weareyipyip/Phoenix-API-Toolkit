@@ -1,6 +1,6 @@
 # Phoenix API Toolkit
 
-[![Actions Status](https://wdp9fww0r9.execute-api.us-west-2.amazonaws.com/production/badge/weareyipyip/Phoenix-API-Toolkit)](https://wdp9fww0r9.execute-api.us-west-2.amazonaws.com/production/results/weareyipyip/Phoenix-API-Toolkit)
+![Actions Status](https://github.com/weareyipyip/Phoenix-API-Toolkit/workflows/CI%20/%20Automated%20testing/badge.svg)
 
 The Phoenix API Toolkit consists of several modules designed to aid in the development of (mainly REST) API's with Elixir/Phoenix. While Phoenix and the ecosystem on which it depends (`Ecto` and `Plug`) provide much out of the box, you will find yourself writing some repetitive code when creating a flexible API. This library aims to reduce that repetition. 
 
@@ -158,7 +158,7 @@ The package can be installed by adding `phoenix_api_toolkit` to your list of dep
 ```elixir 
 def deps do 
   [ 
-      {:phoenix_api_toolkit, "~> 0.9.1"} 
+      {:phoenix_api_toolkit, "~> 0.10.0"} 
   ] 
 end 
 ``` 

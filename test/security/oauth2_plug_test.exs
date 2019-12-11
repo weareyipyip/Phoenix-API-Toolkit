@@ -12,19 +12,25 @@ defmodule PhoenixApiToolkit.Security.Oauth2PlugTest do
     n:
       "h-81k77YajBASjVA9kjYy4ISDAyExr7LJLFP-8GN5CAkLSiqEJfXO9vSBF--qk7fDIcmI5FQQxHLJ0QSfjjalfbCFpmkFAp1w95BPT2Rqg_WLNkW3wl87DAaMmzbFVBtjhxOSxCzi1Vt0dsyEnKWUB-kc2N8U_eBhJnlVg9apyIs0UXVp8PR_fBr4_sHlWuMolcqIpyJWIiktvEn_NGjH-muDhx5jiSlE7nShXasJUMPTXtSbFg9H16ix2fOYdDWk5sYUwzVNuOM1OdfjOnC8CI4cEqJwjmIqXgNfCB1-fBdzna1VC-1_y3Ld65rnY09Dj_LpRYCGrRUxQKz5sOxNw"
   ]
+
   @jwt_defaults %{
     jwk: gen_jwk(),
     jws: gen_jws(),
     payload: gen_payload(iss: "http://my-oauth2-provider")
   }
 
-  @opts Oauth2Plug.init(
-          keyset: test_jwks(),
-          exp_iss: @jwt_defaults.payload["iss"],
-          dummy_verify: false,
-          alg_whitelist: ["RS256"]
-        )
-  @dummy_opts @opts |> Map.put(:dummy_verify, true)
+  def opts do
+    Oauth2Plug.init(
+      lazy_keyset: fn -> test_jwks() |> Oauth2Plug.process_jwks() end,
+      lazy_exp_iss: fn -> @jwt_defaults.payload["iss"] end,
+      dummy_verify: false,
+      alg_whitelist: ["RS256"]
+    )
+  end
+
+  def dummy_opts do
+    opts() |> Map.put(:dummy_verify, true)
+  end
 
   doctest Oauth2Plug
 
@@ -34,17 +40,17 @@ defmodule PhoenixApiToolkit.Security.Oauth2PlugTest do
     test "init defaults to non-dummy mode" do
       assert false ==
                Oauth2Plug.init(
-                 keyset: test_jwks(),
-                 exp_iss: "",
+                 lazy_keyset: fn -> test_jwks() |> Oauth2Plug.process_jwks() end,
+                 lazy_exp_iss: fn -> "" end,
                  alg_whitelist: ["RS256"]
                ).dummy_verify
     end
 
     test "init raises if mandatory parameters are missing" do
-      mandatory_params = [:keyset, :exp_iss, :alg_whitelist]
+      mandatory_params = [:lazy_keyset, :lazy_exp_iss, :alg_whitelist]
 
       for param <- mandatory_params do
-        opts = @opts |> Map.drop([param]) |> Keyword.new()
+        opts = opts() |> Map.drop([param]) |> Keyword.new()
 
         assert_raise KeyError, "key :#{param} not found in: #{inspect(opts)}", fn ->
           opts |> Oauth2Plug.init()
@@ -56,7 +62,7 @@ defmodule PhoenixApiToolkit.Security.Oauth2PlugTest do
       err_message = error_message("missing authorization header")
 
       assert_raise Oauth2TokenVerificationError, err_message, fn ->
-        conn(:get, "/") |> Oauth2Plug.call(@opts)
+        conn(:get, "/") |> Oauth2Plug.call(opts())
       end
     end
 
@@ -66,7 +72,7 @@ defmodule PhoenixApiToolkit.Security.Oauth2PlugTest do
 
       for header <- headers do
         assert_raise Oauth2TokenVerificationError, err_message, fn ->
-          conn(:get, "/") |> put_req_header("authorization", header) |> Oauth2Plug.call(@opts)
+          conn(:get, "/") |> put_req_header("authorization", header) |> Oauth2Plug.call(opts())
         end
       end
     end
@@ -77,7 +83,7 @@ defmodule PhoenixApiToolkit.Security.Oauth2PlugTest do
 
       for header <- headers do
         assert_raise Oauth2TokenVerificationError, err_message, fn ->
-          conn(:get, "/") |> put_req_header("authorization", header) |> Oauth2Plug.call(@opts)
+          conn(:get, "/") |> put_req_header("authorization", header) |> Oauth2Plug.call(opts())
         end
       end
     end
@@ -123,7 +129,7 @@ defmodule PhoenixApiToolkit.Security.Oauth2PlugTest do
     end
 
     test "should allow a correctly authorized request" do
-      result = conn(:get, "/") |> put_jwt(gen_jwt(@jwt_defaults)) |> Oauth2Plug.call(@opts)
+      result = conn(:get, "/") |> put_jwt(gen_jwt(@jwt_defaults)) |> Oauth2Plug.call(opts())
       assert %Plug.Conn{} = result
       assert %JOSE.JWT{} = result.assigns.jwt
       assert %JOSE.JWS{} = result.assigns.jws
@@ -134,16 +140,16 @@ defmodule PhoenixApiToolkit.Security.Oauth2PlugTest do
     @tag :capture_log
     test "should allow incorrectly signed requests" do
       jwt = gen_jwt(@jwt_defaults, jwk: @other_keypair)
-      assert %Plug.Conn{} = conn(:get, "/") |> put_jwt(jwt) |> Oauth2Plug.call(@dummy_opts)
+      assert %Plug.Conn{} = conn(:get, "/") |> put_jwt(jwt) |> Oauth2Plug.call(dummy_opts())
     end
 
     @tag :capture_log
     test "should reject a request with a malformed bearer token JWT" do
-      expect_token_error(["invalid jwt"], "could not decode JWT", @dummy_opts)
+      expect_token_error(["invalid jwt"], "could not decode JWT", dummy_opts())
     end
   end
 
-  defp expect_token_error(jwts, message, opts \\ @opts) do
+  defp expect_token_error(jwts, message, opts \\ opts()) do
     for jwt <- jwts do
       assert_raise Oauth2TokenVerificationError, error_message(message), fn ->
         conn(:get, "/") |> put_jwt(jwt) |> Oauth2Plug.call(opts)
