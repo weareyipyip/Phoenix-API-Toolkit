@@ -42,13 +42,13 @@ defmodule PhoenixApiToolkit.MixProject do
       # meta / dev dependencies
       {:ex_doc, "~> 0.21", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.0.0-rc.6", only: [:dev, :test], runtime: false},
+      {:pre_commit_hook, "~> 1.2", only: [:dev], runtime: false},
 
       # application dependencies
       {:ecto, "~> 3.0"},
       {:plug, "~> 1.8"},
       {:jason, "~> 1.0"},
-      {:jose, "~> 1.9", optional: true},
-      {:pow, ">= 1.0.15", optional: true}
+      {:jose, "~> 1.9", optional: true}
     ]
   end
 end
