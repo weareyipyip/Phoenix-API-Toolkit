@@ -9,7 +9,7 @@ jobs:
     name: Elixir ${{matrix.elixir}}
     strategy:
       matrix:
-        elixir: [1.7.x, 1.8.x, 1.9.x]
+        elixir: [1.7.x, 1.8.x, 1.9.x, 1.10.x]
     steps:
       - name: Checkout code
         uses: actions/checkout@v1

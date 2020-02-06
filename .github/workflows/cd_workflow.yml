@@ -17,7 +17,7 @@ jobs:
       - uses: actions/setup-elixir@v1.2.0
         with:
           otp-version: 22.x
-          elixir-version: 1.9.x
+          elixir-version: 1.10.x
       - name: Install dependencies
         run: mix do local.hex --force, local.rebar --force, deps.get
       - name: Compile code (warnings as errors)
