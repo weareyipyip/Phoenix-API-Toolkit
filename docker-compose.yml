@@ -13,7 +13,7 @@ services:
             - /application/.elixir_ls
             - /application/cover
             - 1.10__build:/application/_build
-            - 1.910_deps:/application/deps
+            - 1.10_deps:/application/deps
             - 1.10_mix:/root/.mix
         environment:            
             MIX_ENV: dev
