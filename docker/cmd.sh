@@ -52,7 +52,7 @@ echo "***********************"
 echo "* Running Dialyzer... *"
 echo "***********************"
 echo
-mix dialyzer --halt-exit-status
+mix dialyzer
 echo
 echo "Done."
 echo
