@@ -5,16 +5,19 @@ on:
 
 jobs:
   deploy:
+    if: (github.actor == 'TimPelgrim' || github.actor == 'EvertVerboven' || github.actor == 'juulSme')
     name: Publish release
     runs-on: ubuntu-latest
-    container:
-      image: elixir:1.9-alpine
 
     steps:
       - name: Display build environment
         run: printenv
       - name: Checkout code
         uses: actions/checkout@v1
+      - uses: actions/setup-elixir@v1.2.0
+        with:
+          otp-version: 22.x
+          elixir-version: 1.10.x
       - name: Install dependencies
         run: mix do local.hex --force, local.rebar --force, deps.get
       - name: Compile code (warnings as errors)
@@ -28,7 +31,6 @@ jobs:
       - name: Create docs
         run: mix docs
       - name: Publish release
-        if: (github.actor == 'TimPelgrim' || github.actor == 'EvertVerboven' || github.actor == 'juulSme')
         run: mix hex.publish --yes
         env:
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}

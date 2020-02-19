@@ -4,6 +4,11 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "(Docker) Elixir 1.10 IEx",
+            "type": "shell",
+            "command": "./iex.sh",
+        },
+        {
             "label": "(Docker) Elixir 1.9 IEx",
             "type": "shell",
             "command": "./iex.sh",

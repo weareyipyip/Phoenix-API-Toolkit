@@ -1,13 +1,27 @@
 version: "3"
 
 services:
-    phoenix_api_toolkit_1.9:
-        image: elixir:1.9-alpine
+    phoenix_api_toolkit_1.10:
+        image: elixir:1.10-alpine
         working_dir: /application
         # The top mount mounts the local source code into the container for compilation and running.
         # The other mounts effectively function as exclusions on the top mount, to prevent build artifacts from being created locally (as root).
         # Some of the other mounts are mapped to docker volumes to improve build-on-build performance by caching the build artifacts.
         # To completely clean the volumes, execute `docker-compose down -v` in a shell. A subsequent `docker-compose up` will run in a fresh environment.
+        volumes:
+            - .:/application:cached
+            - /application/.elixir_ls
+            - /application/cover
+            - 1.10__build:/application/_build
+            - 1.10_deps:/application/deps
+            - 1.10_mix:/root/.mix
+        environment:            
+            MIX_ENV: dev
+        command: /bin/sh /application/docker/cmd.sh
+    
+    phoenix_api_toolkit_1.9:
+        image: elixir:1.9-alpine
+        working_dir: /application
         volumes:
             - .:/application:cached
             - /application/.elixir_ls
@@ -34,6 +48,9 @@ services:
         command: /bin/sh /application/docker/cmd.sh
 
 volumes:
+    1.10__build:
+    1.10_deps:
+    1.10_mix:
     1.9__build:
     1.9_deps:
     1.9_mix:
