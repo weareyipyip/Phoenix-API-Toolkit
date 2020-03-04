@@ -4,7 +4,7 @@ defmodule PhoenixApiToolkit.MixProject do
   def project do
     [
       app: :phoenix_api_toolkit,
-      version: "0.10.0",
+      version: "0.11.0",
       elixir: "~> 1.7",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -42,7 +42,6 @@ defmodule PhoenixApiToolkit.MixProject do
       # meta / dev dependencies
       {:ex_doc, "~> 0.21", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.0.0-rc.6", only: [:dev, :test], runtime: false},
-      {:pre_commit_hook, "~> 1.2", only: [:dev], runtime: false},
 
       # application dependencies
       {:ecto, "~> 3.0"},
