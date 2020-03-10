@@ -4,9 +4,6 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
   and ultimately list/index endpoints, that accept a map of filters to apply to the query.
   Such a map can be based on HTTP query parameters, naturally.
 
-  This module complements `PhoenixApiToolkit.Ecto.GenericQueries` by leveraging the generic
-  queries provided by that module to filter a query dynamically based on a parameter map.
-
   Several filtering types are so common that they have been implemented using standard filter
   macro's. This way, you only have to define which fields are filterable in what way.
 
@@ -14,14 +11,17 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
 
   ## Example without standard filters
 
+      import Ecto.Query
+      require Ecto.Query
+
       def list_without_standard_filters(filters \\\\ %{}) do
         from(user in "users", as: :user)
         |> apply_filters(filters, fn
           {:order_by, {field, direction}}, query ->
-            GenericQueries.order_by(query, :user, field, direction)
+            order_by(query, [user: user], [{^direction, field(user, ^field)}])
 
           {literal, value}, query when literal in [:id, :name, :residence, :address] ->
-            GenericQueries.equals(query, :user, literal, value)
+            where(query, [user: user], field(user, ^literal) == ^value)
 
           _, query ->
             query
@@ -94,8 +94,8 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
       #Ecto.Query<from u0 in "users", as: :user>
 
       # let's do some filtering
-      iex> list_with_standard_filters(%{username: "Peter", balance_lt: 50.00})
-      #Ecto.Query<from u0 in "users", as: :user, where: u0.balance < ^50.0, where: u0.username == ^"Peter">
+      iex> list_with_standard_filters(%{username: "Peter", balance_lt: 50.00, address: ["sesame street"]})
+      #Ecto.Query<from u0 in "users", as: :user, where: u0.address in ^["sesame street"], where: u0.balance < ^50.0, where: u0.username == ^"Peter">
 
       # limit, offset, and order_by are supported
       iex> list_with_standard_filters(%{limit: 10, offset: 1, order_by: {:address, :desc}})
@@ -112,14 +112,13 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
   This will generate the following docs:
 
       iex> generate_filter_docs(@filter_definitions, literals: [:group_name])
-      "## Literal filters\\n\\nLiteral filters are compared for equality (is the filter value equal to the row's value?).\\nFor an example query executed by a literal filter, please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.equals/4`.\\nThe following filters are supported:\\n* `address`\\n* `balance`\\n* `group_name`\\n* `id`\\n* `username`\\n\\n## Set filters\\n\\nSet filters are compared for set membership (is the filter value a member of the row's set?).\\nFor an example query executed by a set filter, please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.member_of/4`.\\nThe following filters are supported:\\n* `roles`\\n\\n## Smaller-than filters\\n\\nSmaller-than filters are compared relatively (is the filter value smaller than the row value?).\\nFor an example query executed by a smaller-than filter, please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.smaller_than/4`.\\nThe following filters are supported:\\n\\nFilter | Must be smaller than\\n--- | ---\\n`balance_lt` | `balance`\\n`inserted_before` | `inserted_at`\\n\\n## Greater-than-or-equal-to filters\\n\\nGreater-than-or-equals filters are compared relatively (is the filter value greater than or equal to the row value?).\\nFor an example query executed by a greater-than-or-equals filter, please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.greater_than_or_equals/4`.\\nThe following filters are supported:\\n\\nFilter | Must be greater than or equal to\\n--- | ---\\n`balance_gte` | `balance`\\n`inserted_at_or_after` | `inserted_at`\\n\\n## Order-by filters\\n\\nOrder-by filters take an argument of format `{:field, :direction}`, so for example\\n`{:username, :desc}`, and sort the result set.\\nFor an example query executed by an order-by filter, please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.order_by/4`.\\nThe following fields are supported:\\n* `address`\\n* `balance`\\n* `id`\\n* `username`\\n\\nThe supported directions can be found in `t:PhoenixApiToolkit.Ecto.GenericQueries.order_directions/0`.\\n\\n## Pagination filters\\n\\nThe pagination filters are `limit` and `offset`.\\nFor example queries executed by the pagination filters,\\nplease refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.limit/2` and\\n`PhoenixApiToolkit.Ecto.GenericQueries.offset/2`, respectively.\\n"
+      "## Literal filters\\n\\nLiteral filters are compared for equality (is the filter value equal to the row's value?).\\nThe following filters are supported:\\n* `address`\\n* `balance`\\n* `group_name`\\n* `id`\\n* `username`\\n\\n## Set filters\\n\\nSet filters are compared for set membership (is the filter value a member of the row's set?).\\nThe following filters are supported:\\n* `roles`\\n\\n## Smaller-than filters\\n\\nSmaller-than filters are compared relatively (is the filter value smaller than the row value?).\\nThe following filters are supported:\\n\\nFilter | Must be smaller than\\n--- | ---\\n`balance_lt` | `balance`\\n`inserted_before` | `inserted_at`\\n\\n## Greater-than-or-equal-to filters\\n\\nGreater-than-or-equals filters are compared relatively (is the filter value greater than or equal to the row value?).\\nThe following filters are supported:\\n\\nFilter | Must be greater than or equal to\\n--- | ---\\n`balance_gte` | `balance`\\n`inserted_at_or_after` | `inserted_at`\\n\\n## Order-by filters\\n\\nOrder-by filters take an argument of format `{:field, :direction}`, so for example\\n`{:username, :desc}`, and sort the result set.\\nThe following fields are supported:\\n* `address`\\n* `balance`\\n* `id`\\n* `username`\\n\\nThe supported directions can be found in the docs of `Ecto.Query.order_by/3`.\\n\\n## Pagination filters\\n\\nThe pagination filters are `limit` and `offset`.\\nThese filters invoke `Ecto.Query.limit/2` and `Ecto.Query.offset/2` respectively.\\n"
 
   Which will be rendered as:
 
   > ## Literal filters
   >
   > Literal filters are compared for equality (is the filter value equal to the row's value?).
-  > For an example query executed by a literal filter, please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.equals/4`.
   > The following filters are supported:
   > * `address`
   > * `balance`
@@ -130,14 +129,12 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
   > ## Set filters
   >
   > Set filters are compared for set membership (is the filter value a member of the row's set?).
-  > For an example query executed by a set filter, please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.member_of/4`.
   > The following filters are supported:
   > * `roles`
   >
   > ## Smaller-than filters
   >
   > Smaller-than filters are compared relatively (is the filter value smaller than the row value?).
-  > For an example query executed by a smaller-than filter, please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.smaller_than/4`.
   > The following filters are supported:
   >
   > Filter | Must be smaller than
@@ -148,7 +145,6 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
   > ## Greater-than-or-equal-to filters
   >
   > Greater-than-or-equals filters are compared relatively (is the filter value greater than or equal to the row value?).
-  > For an example query executed by a greater-than-or-equals filter, please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.greater_than_or_equals/4`.
   > The following filters are supported:
   >
   > Filter | Must be greater than or equal to
@@ -160,31 +156,30 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
   >
   > Order-by filters take an argument of format `{:field, :direction}`, so for example
   > `{:username, :desc}`, and sort the result set.
-  > For an example query executed by an order-by filter, please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.order_by/4`.
   > The following fields are supported:
   > * `address`
   > * `balance`
   > * `id`
   > * `username`
   >
-  > The supported directions can be found in `t:PhoenixApiToolkit.Ecto.GenericQueries.order_directions/0`.
+  > The supported directions can be found in the docs of `Ecto.Query.order_by/3`.
+  >
   > ## Pagination filters
   >
   > The pagination filters are `limit` and `offset`.
-  > For example queries executed by the pagination filters,
-  > please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.limit/2` and
-  > `PhoenixApiToolkit.Ecto.GenericQueries.offset/2`, respectively.
+  > These filters invoke `Ecto.Query.limit/2` and `Ecto.Query.offset/2` respectively.
   """
   # to generate: PhoenixApiToolkit.Ecto.DynamicFilters.generate_filter_docs([], []) |> String.replace("\n", "\n> ") |> IO.puts
   alias Ecto.Query
-  import PhoenixApiToolkit.Ecto.GenericQueries
+  import Ecto.Query
+  require Ecto.Query
 
   @typedoc "Format of a filter that can be applied to a query to narrow it down"
   @type filter :: {atom(), any()}
 
   @doc """
   Applies `filters` to `query` by reducing `filters` using `filter_reductor`.
-  Combine with the generic queries from `PhoenixApiToolkit.Ecto.GenericQueries` to write complex
+  Combine with the custom queries from `Ecto.Query` to write complex
   filterables. Several standard filters have been implemented in
   `standard_filters/4`.
 
@@ -232,10 +227,10 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
   - `filter_definitions`: keyword list of filter types and the fields for which they should be generated
 
   The options supported by the `filter_definitions` parameter are:
-  - `literals`: fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.equals/4`, also the fields by which the query can be ordered by `PhoenixApiToolkit.Ecto.GenericQueries.order_by/4`
-  - `sets`: fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.member_of/4`
-  - `smaller_than`: keyword list of virtual "smaller_than" fields and the actual fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.smaller_than/4`
-  - `greater_than_or_equals`: keyword list of virtual "greater_than_or_equals" fields and the actual fields comparable by `PhoenixApiToolkit.Ecto.GenericQueries.greater_than_or_equals/4`
+  - `literals`: fields comparable by equality, also the fields by which the query can be ordered.
+  - `sets`: fields comparable by set membership
+  - `smaller_than`: keyword list of virtual "smaller_than" fields and the actual field with which a smaller-than comparison is made
+  - `greater_than_or_equals`: keyword list of virtual "greater_than_or_equals" fields and the actual field with which a greater-than-or-equal-to comparison is made
   """
   @spec standard_filters(Query.t(), filter, atom, filter_definitions) :: any
   defmacro standard_filters(query, filter, main_binding, filter_definitions) do
@@ -245,31 +240,35 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
     # create clauses for the eventual case statement (as raw AST!)
     clauses =
       []
-      |> add_clause(quote(do: {:limit, val}), quote(do: limit(query, val)))
-      |> add_clause(quote(do: {:offset, val}), quote(do: offset(query, val)))
+      |> add_clause(quote(do: {:limit, val}), quote(do: limit(query, ^val)))
+      |> add_clause(quote(do: {:offset, val}), quote(do: offset(query, ^val)))
       |> add_clause_for_each(filters[:literals] || [], fn literal, clauses ->
         clauses
         |> add_clause(
-          quote(do: {unquote(literal), val}),
-          quote(do: equals(query, main_binding, unquote(literal), val))
+          quote(do: {unquote(literal), val} when is_list(val)),
+          quote(do: where(query, [{^main_binding, bd}], field(bd, unquote(literal)) in ^val))
         )
         |> add_clause(
-          quote(do: {:order_by, {unquote(literal), direction}}),
-          quote(do: order_by(query, main_binding, unquote(literal), direction))
+          quote(do: {unquote(literal), val}),
+          quote(do: where(query, [{^main_binding, bd}], field(bd, unquote(literal)) == ^val))
+        )
+        |> add_clause(
+          quote(do: {:order_by, {unquote(literal), dir}}),
+          quote(do: order_by(query, [{^main_binding, bd}], [{^dir, field(bd, unquote(literal))}]))
         )
       end)
       |> add_clause_for_each(filters[:sets] || [], fn set, clauses ->
         add_clause(
           clauses,
           quote(do: {unquote(set), val}),
-          quote(do: member_of(query, main_binding, unquote(set), val))
+          quote(do: where(query, [{^main_binding, bd}], ^val in field(bd, unquote(set))))
         )
       end)
       |> add_clause_for_each(filters[:smaller_than] || [], fn {fld, real_fld}, clauses ->
         add_clause(
           clauses,
           quote(do: {unquote(fld), val}),
-          quote(do: smaller_than(query, main_binding, unquote(real_fld), val))
+          quote(do: where(query, [{^main_binding, bd}], field(bd, unquote(real_fld)) < ^val))
         )
       end)
       |> add_clause_for_each(
@@ -278,7 +277,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
           add_clause(
             clauses,
             quote(do: {unquote(fld), val}),
-            quote(do: greater_than_or_equals(query, main_binding, unquote(real_fld), val))
+            quote(do: where(query, [{^main_binding, bd}], field(bd, unquote(real_fld)) >= ^val))
           )
         end
       )
@@ -317,9 +316,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
       ## Pagination filters
 
       The pagination filters are `limit` and `offset`.
-      For example queries executed by the pagination filters,
-      please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.limit/2` and
-      `PhoenixApiToolkit.Ecto.GenericQueries.offset/2`, respectively.
+      These filters invoke `Ecto.Query.limit/2` and `Ecto.Query.offset/2` respectively.
       """
   end
 
@@ -346,7 +343,6 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
     ## Literal filters
 
     Literal filters are compared for equality (is the filter value equal to the row's value?).
-    For an example query executed by a literal filter, please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.equals/4`.
     The following filters are supported:
     #{literals |> to_list()}
 
@@ -360,7 +356,6 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
     ## Set filters
 
     Set filters are compared for set membership (is the filter value a member of the row's set?).
-    For an example query executed by a set filter, please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.member_of/4`.
     The following filters are supported:
     #{sets |> to_list()}
 
@@ -374,7 +369,6 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
     ## Smaller-than filters
 
     Smaller-than filters are compared relatively (is the filter value smaller than the row value?).
-    For an example query executed by a smaller-than filter, please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.smaller_than/4`.
     The following filters are supported:
 
     Filter | Must be smaller than
@@ -391,7 +385,6 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
     ## Greater-than-or-equal-to filters
 
     Greater-than-or-equals filters are compared relatively (is the filter value greater than or equal to the row value?).
-    For an example query executed by a greater-than-or-equals filter, please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.greater_than_or_equals/4`.
     The following filters are supported:
 
     Filter | Must be greater than or equal to
@@ -409,11 +402,10 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
 
     Order-by filters take an argument of format `{:field, :direction}`, so for example
     `{:username, :desc}`, and sort the result set.
-    For an example query executed by an order-by filter, please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.order_by/4`.
     The following fields are supported:
     #{order_by |> to_list()}
 
-    The supported directions can be found in `t:PhoenixApiToolkit.Ecto.GenericQueries.order_directions/0`.
+    The supported directions can be found in the docs of `Ecto.Query.order_by/3`.
 
     """
   end

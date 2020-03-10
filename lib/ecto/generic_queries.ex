@@ -1,5 +1,7 @@
 defmodule PhoenixApiToolkit.Ecto.GenericQueries do
   @moduledoc """
+  This entire module is DEPRECATED.
+
   Generic queries are applicable to any named binding in a query. By using
   generic queries, it is not necessary to implement standard queries for every Ecto model.
 
@@ -46,6 +48,7 @@ defmodule PhoenixApiToolkit.Ecto.GenericQueries do
       iex> smaller_than(base_query(), :user, :balance, 50.00)
       #Ecto.Query<from u0 in "users", as: :user, where: u0.balance < ^50.0>
   """
+  @deprecated "Same as Ecto.Query.where(query, [binding: bd], bd.field < ^value)"
   @spec smaller_than(Query.t(), atom, atom, any) :: Query.t()
   def smaller_than(query, binding, field, value),
     do: Query.from([{^binding, bd}] in query, where: field(bd, ^field) < ^value)
@@ -60,6 +63,7 @@ defmodule PhoenixApiToolkit.Ecto.GenericQueries do
       iex> greater_than_or_equals(base_query(), :user, :balance, 50.00)
       #Ecto.Query<from u0 in "users", as: :user, where: u0.balance >= ^50.0>
   """
+  @deprecated "Same as Ecto.Query.where(query, [binding: bd], bd.field >= ^value)"
   @spec greater_than_or_equals(Query.t(), atom, atom, any) :: Query.t()
   def greater_than_or_equals(query, binding, field, value),
     do: Query.from([{^binding, bd}] in query, where: field(bd, ^field) >= ^value)
@@ -78,6 +82,7 @@ defmodule PhoenixApiToolkit.Ecto.GenericQueries do
       iex> equals(base_query(), :user, :name, ["Peter", "Patrick"])
       #Ecto.Query<from u0 in "users", as: :user, where: u0.name in ^["Peter", "Patrick"]>
   """
+  @deprecated "Same as Ecto.Query.where(query, [binding: bd], bd.field == ^value) or ...in ^value"
   @spec equals(Query.t(), atom, atom, any) :: Query.t()
   def equals(query, binding, field, value) when is_list(value),
     do: Query.from([{^binding, bd}] in query, where: field(bd, ^field) in ^value)
@@ -95,6 +100,7 @@ defmodule PhoenixApiToolkit.Ecto.GenericQueries do
       iex> member_of(base_query(), :user, :roles, "admin")
       #Ecto.Query<from u0 in "users", as: :user, where: ^"admin" in u0.roles>
   """
+  @deprecated "Same as Ecto.Query.where(query, [binding: bd], ^value in bd.field)"
   @spec member_of(Query.t(), atom, atom, any) :: Query.t()
   def member_of(query, binding, field, value),
     do: Query.from([{^binding, bd}] in query, where: ^value in field(bd, ^field))
@@ -108,6 +114,7 @@ defmodule PhoenixApiToolkit.Ecto.GenericQueries do
       iex> order_by(base_query(), :user, :name, :asc_nulls_first)
       #Ecto.Query<from u0 in "users", as: :user, order_by: [asc_nulls_first: u0.name]>
   """
+  @deprecated "Same as Ecto.Query.order_by(query, [binding: bd], [{^direction, bd.field}])"
   @spec order_by(Query.t(), atom, atom, order_directions) :: Query.t()
   def order_by(query, binding, field, direction),
     do: Query.from([{^binding, bd}] in query, order_by: [{^direction, field(bd, ^field)}])
@@ -121,6 +128,7 @@ defmodule PhoenixApiToolkit.Ecto.GenericQueries do
       iex> offset(base_query(), 10)
       #Ecto.Query<from u0 in "users", as: :user, offset: ^10>
   """
+  @deprecated "Same as Ecto.Query.offset(query, ^value)"
   @spec offset(Query.t(), integer) :: Query.t()
   def offset(query, value), do: Query.offset(query, ^value)
 
@@ -133,6 +141,7 @@ defmodule PhoenixApiToolkit.Ecto.GenericQueries do
       iex> limit(base_query(), 10)
       #Ecto.Query<from u0 in "users", as: :user, limit: ^10>
   """
+  @deprecated "Same as Ecto.Query.limit(query, ^value)"
   @spec limit(Query.t(), integer) :: Query.t()
   def limit(query, value), do: Query.limit(query, ^value)
 end

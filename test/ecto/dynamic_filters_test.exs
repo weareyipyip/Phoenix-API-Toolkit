@@ -1,9 +1,8 @@
 defmodule PhoenixApiToolkit.Ecto.DynamicFiltersTest do
   use ExUnit.Case, async: true
-
-  alias PhoenixApiToolkit.Ecto.GenericQueries
   import PhoenixApiToolkit.Ecto.DynamicFilters
   import Ecto.Query
+  require Ecto.Query
 
   @filter_definitions [
     literals: [:id, :username, :address, :balance],
@@ -22,10 +21,10 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFiltersTest do
     from(user in "users", as: :user)
     |> apply_filters(filters, fn
       {:order_by, {field, direction}}, query ->
-        GenericQueries.order_by(query, :user, field, direction)
+        order_by(query, [user: user], [{^direction, field(user, ^field)}])
 
       {literal, value}, query when literal in [:id, :name, :residence, :address] ->
-        GenericQueries.equals(query, :user, literal, value)
+        where(query, [user: user], field(user, ^literal) == ^value)
 
       _, query ->
         query
