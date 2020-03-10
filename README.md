@@ -30,15 +30,15 @@ When taking into account that many fields like date fields and number fields log
 
 ### Generic Queries
 
-The first issue - the number of subqueries needed - can be solved using `PhoenixApiToolkit.Ecto.GenericQueries`. This module provides functions that generally allow specifying a named binding and the field with which to compare, allowing you to eliminate all "standard queries" from your Ecto models. For example, the queries above can be removed, and to find users with first name "Peter" born before May 20th, 2010:
+The first issue - the number of subqueries needed - can be solved by dynamically using `Ecto.Query`. For example, the queries above can be removed, and to find users with first name "Peter" born before May 20th, 2010:
 
 ```elixir
 from(user in "users", as: :user)
-|> GenericQueries.equals(:user, :first_name, "Peter")
-|> GenericQueries.smaller_than(:user, :birthday, "2010-05-20")
+|> where([user: user], user.first_name == ^"Peter")
+|> where([user: user], user.birthday < ^"2010-05-20")
 ```
 
-More complex queries can still be written by hand of course.
+More complex queries can still be written as separate functions, of course.
 
 ### Dynamic filters
 
@@ -50,9 +50,9 @@ defmodule UserContext do
     base_query = from(user in "users" as: :user)
 
     Enum.reduce(filters, base_query, fn filter, query -> 
-      {:first_name, value} -> GenericQueries.equals(:user, :first_name, value)
-      {:birthday_before, value} -> GenericQueries.smaller_than(:user, :birthday, value)
-      {:order_by, {field, direction}} -> GenericQueries.order_by(:user, field, direction)
+      {:first_name, value} -> where([user: user], user.first_name == ^value)
+      {:birthday_before, value} -> where([user: user], user.birthday < ^value)
+      {:order_by, {field, direction}} -> order_by(query, [user: user], [{^direction, field(user, ^field)}])
       _ -> query
     end)    
   end
@@ -99,7 +99,6 @@ It is difficult to keep such a flexible function and its documentation in sync. 
 > ## Literal filters
 > 
 > Literal filters are compared for equality (is the filter value equal to the row's value?).
-> For an example query executed by a literal filter, please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.equals/4`.
 > The following filters are supported:
 > * `first_name`
 > * `group_name`
@@ -107,7 +106,6 @@ It is difficult to keep such a flexible function and its documentation in sync. 
 > ## Smaller-than filters
 > 
 > Smaller-than filters are compared relatively (is the filter value smaller than the row value?).
-> For an example query executed by a smaller-than filter, please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.smaller_than/4`.
 > The following filters are supported:
 > 
 > Filter | Must be smaller than
@@ -118,18 +116,14 @@ It is difficult to keep such a flexible function and its documentation in sync. 
 > 
 > Order-by filters take an argument of format `{:field, :direction}`, so for example
 > `{:username, :desc}`, and sort the result set.
-> For an example query executed by an order-by filter, please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.order_by/4`.
 > The following fields are supported:
 > * `first_name`
 > 
-> The supported directions can be found in `t:PhoenixApiToolkit.Ecto.GenericQueries.order_directions/0`.
+> The supported directions can be found in the docs of `Ecto.Query.order_by/3`.
 > 
 > ## Pagination filters
 > 
-> The pagination filters are `limit` and `offset`.
-> For example queries executed by the pagination filters,
-> please refer to the docs of `PhoenixApiToolkit.Ecto.GenericQueries.limit/2` and
-> `PhoenixApiToolkit.Ecto.GenericQueries.offset/2`, respectively.
+> The pagination filters are `limit` and `offset`. These filters invoke `Ecto.Query.limit/2` and `Ecto.Query.offset/2` respectively.
 
 Note that the aim is not to emulate GraphQL in a REST API. It is not possible for the API client to specify which fields the API should return or how deep the nesting should be: it is still necessary to develop different REST resources for differently-shaped responses (for example, `/api/users` or `/api/users_with_groups` etc). In a REST API, simple filtering and sorting functionality can be supported, however, without going the full GraphQL route. We will not discuss the pro's and cons of GraphQL versus REST here, but we maintain that GraphQL is not a drop-in replacement for REST API's in every situation and there is still a place for (flexible) REST API's, for example when caching on anything other than the client itself is desired or when development simplicity trumps complete flexibility and the number of different clients is limited.
 
@@ -158,7 +152,7 @@ The package can be installed by adding `phoenix_api_toolkit` to your list of dep
 ```elixir 
 def deps do 
   [ 
-      {:phoenix_api_toolkit, "~> 0.11.0"} 
+      {:phoenix_api_toolkit, "~> 0.12.0-beta.1"} 
   ] 
 end 
 ``` 
