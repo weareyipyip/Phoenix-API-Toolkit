@@ -152,7 +152,7 @@ The package can be installed by adding `phoenix_api_toolkit` to your list of dep
 ```elixir 
 def deps do 
   [ 
-      {:phoenix_api_toolkit, "~> 0.12.0-beta.2"} 
+      {:phoenix_api_toolkit, "~> 0.12.0"} 
   ] 
 end 
 ``` 
