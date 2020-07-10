@@ -20,12 +20,12 @@ jobs:
           elixir-version: 1.10.x
       - name: Install dependencies
         run: mix do local.hex --force, local.rebar --force, deps.get
-      - name: Compile code (warnings as errors)
-        run: mix compile --warnings-as-errors
       - name: Check that versions match in tag, readme and mix.exs
-        run: mix run check_versions.exs
+        run: mix run check_versions.exs match_git_tag
       - name: Check code formatting
         run: mix format --check-formatted
+      - name: Compile code (warnings as errors)
+        run: mix compile --warnings-as-errors
       - name: Run tests (with coverage)
         run: mix test --cover
       - name: Create docs

@@ -35,10 +35,12 @@ jobs:
         run: printenv
       - name: Install dependencies
         run: mix do local.hex --force, local.rebar --force, deps.get
-      - name: Compile code (warnings as errors)
-        run: mix compile --warnings-as-errors
       - name: Check code formatting
         run: mix format --check-formatted
+      - name: Check that versions match in readme and mix.exs
+        run: mix run check_versions.exs
+      - name: Compile code (warnings as errors)
+        run: mix compile --warnings-as-errors
       - name: Run tests (with coverage)
         run: mix test --cover
       - name: Create docs
