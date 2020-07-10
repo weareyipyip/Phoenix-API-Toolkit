@@ -6,11 +6,46 @@ defmodule PhoenixApiToolkit.Security.Plugs do
   """
   alias Plug.Conn
   import Plug.Conn
-  alias PhoenixApiToolkit.Security.{MissingContentTypeError, Oauth2TokenVerificationError}
+
+  alias PhoenixApiToolkit.Security.{
+    MissingContentTypeError,
+    Oauth2TokenVerificationError,
+    AjaxCSRFError
+  }
+
   require Logger
 
-  # DELETE should not have a request body
-  @unsafe_methods ~w(PUT POST PATCH) |> MapSet.new()
+  @doc """
+  Protect AJAX-requests / API endpoints (ONLY those requests, not HTML forms!) against CSRF-attacks by requiring header `x-csrf-token` to be set to any value.
+
+  This defense relies on the same-origin policy (SOP) restriction that only JavaScript can be used to add a custom header, and only within its origin. https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html#use-of-custom-request-headers
+
+  ## Examples / doctests
+
+      # requests that don't (shouldn't) change server state pass through
+      iex> conn(:get, "/") |> ajax_csrf_protect() |> Map.get(:halted)
+      false
+
+      # state-changing requests with the header pass through
+      iex> conn(:post, "/") |> put_req_header("x-csrf-token", "anything") |> ajax_csrf_protect() |> Map.get(:halted)
+      false
+
+      # state-changing requests without the header are rejected
+      iex> conn(:post, "/") |> ajax_csrf_protect()
+      ** (PhoenixApiToolkit.Security.AjaxCSRFError) missing 'x-csrf-token' header
+  """
+  @spec ajax_csrf_protect(Plug.Conn.t(), any()) :: Plug.Conn.t()
+  def ajax_csrf_protect(conn, _opts \\ nil)
+
+  def ajax_csrf_protect(%{method: method} = conn, _) when method in ~w(POST PUT PATCH DELETE) do
+    if (conn |> get_req_header("x-csrf-token") |> List.first()) in [nil, ""] do
+      raise AjaxCSRFError
+    else
+      conn
+    end
+  end
+
+  def ajax_csrf_protect(conn, _), do: conn
 
   @doc """
   Checks if the request's `"content-type"` header is present. Content matching is done by `Plug.Parsers`.
@@ -40,15 +75,17 @@ defmodule PhoenixApiToolkit.Security.Plugs do
 
   """
   @spec require_content_type(Conn.t(), Plug.opts()) :: Conn.t()
-  def require_content_type(conn, _opts \\ []) do
-    with {:unsafe_method, true} <- {:unsafe_method, conn.method in @unsafe_methods},
-         {:header, [_header]} <- {:header, get_req_header(conn, "content-type")} do
-      conn
+  def require_content_type(conn, _opts \\ nil)
+
+  def require_content_type(%{method: method} = conn, _) when method in ~w(PUT POST PATCH) do
+    if (conn |> get_req_header("content-type") |> List.first()) in [nil, ""] do
+      raise MissingContentTypeError
     else
-      {:header, _} -> raise MissingContentTypeError
-      {:unsafe_method, false} -> conn
+      conn
     end
   end
+
+  def require_content_type(conn, _), do: conn
 
   @doc """
   Adds security headers to the response as recommended for API's by OWASP. Sets

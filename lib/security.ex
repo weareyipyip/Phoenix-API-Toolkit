@@ -1,6 +1,13 @@
 defmodule PhoenixApiToolkit.Security do
   @moduledoc false
 
+  defmodule AjaxCSRFError do
+    @moduledoc """
+    Error raised when a state-changing request does not have a "x-csrf-token" header.
+    """
+    defexception message: "missing 'x-csrf-token' header", plug_status: 403
+  end
+
   defmodule MissingContentTypeError do
     @moduledoc "Error raised when a content-carrying request does not have a content-type header."
     defexception message: "missing 'content-type' header", plug_status: 415
