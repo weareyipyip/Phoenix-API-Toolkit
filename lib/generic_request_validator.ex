@@ -187,7 +187,7 @@ defmodule PhoenixApiToolkit.GenericRequestValidator do
   end
 
   @doc """
-  Validates the `limit` and `offset` query parameters of an index endpoint.
+  Validates the `limit` and `offset` query parameters of an index endpoint. If `max_limit == nil`, no maximum limit is enforced.
 
   ## Examples
 
@@ -202,6 +202,10 @@ defmodule PhoenixApiToolkit.GenericRequestValidator do
       # a default limit can be set so that a default number of results is returned
       iex> resource_schema() |> query_pagination(%{}, 100, 50)
       #Ecto.Changeset<action: nil, changes: %{limit: 50}, errors: [], data: %{}, valid?: true>
+
+      # no max limit is enforced if `max_limit == nil`
+      iex> resource_schema() |> query_pagination(%{"limit" => 1_000_000}, nil)
+      #Ecto.Changeset<action: nil, changes: %{limit: 1000000}, errors: [], data: %{}, valid?: true>
   """
   @spec query_pagination(map() | Ecto.Changeset.t() | schema, map(), integer(), integer()) ::
           Ecto.Changeset.t()
@@ -209,7 +213,13 @@ defmodule PhoenixApiToolkit.GenericRequestValidator do
     changeset
     |> cast(attrs, [:limit, :offset])
     |> put_change_if_unchanged(:limit, default_limit)
-    |> validate_number(:limit, greater_than_or_equal_to: 0, less_than: max_limit)
+    |> validate_number(:limit, greater_than_or_equal_to: 0)
     |> validate_number(:offset, greater_than_or_equal_to: 0)
+    |> validate_max_limit(max_limit)
   end
+
+  defp validate_max_limit(cs, nil), do: cs
+
+  defp validate_max_limit(cs, max_limit),
+    do: validate_number(cs, :limit, less_than_or_equal_to: max_limit)
 end

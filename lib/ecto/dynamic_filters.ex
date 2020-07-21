@@ -231,6 +231,14 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
   - `sets`: fields comparable by set membership
   - `smaller_than`: keyword list of virtual "smaller_than" fields and the actual field with which a smaller-than comparison is made
   - `greater_than_or_equals`: keyword list of virtual "greater_than_or_equals" fields and the actual field with which a greater-than-or-equal-to comparison is made
+
+  For ordering on multiple columns, this is a start:
+  ```
+   {:order_by, fields}, q ->
+        Enum.reduce(fields, q, fn {binding, dir, fld}, q ->
+          order_by(q, [{^binding, bd}], [{^dir, field(bd, ^fld)}])
+        end)
+  ```
   """
   @spec standard_filters(Query.t(), filter, atom, filter_definitions) :: any
   defmacro standard_filters(query, filter, main_binding, filter_definitions) do
