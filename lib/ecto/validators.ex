@@ -339,14 +339,15 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
 
   def validate_upload_mime(changeset, field, mime_field, file_signatures) do
     with change when not is_nil(change) <- get_change(changeset, field),
-         {:ok, binary} <- Base.decode64(change),
-         %{valid?: true} = changeset <-
-           validate_file_signature(changeset, field, mime_field, file_signatures, binary) do
-      put_change(changeset, field, binary)
+         {:base64, {:ok, binary}} <- {:base64, Base.decode64(change)},
+         {:valid, {true, mime_type}} <-
+           {:valid, Enum.find_value(file_signatures, &file_signature_match_mime?(binary, &1))} do
+      put_change(changeset, field, binary) |> put_change(mime_field, mime_type)
     else
       nil -> changeset
-      %Ecto.Changeset{} = changeset -> changeset
-      :error -> add_error(changeset, field, "invalid base64 encoding")
+      {:base64, :error} -> add_error(changeset, field, "invalid base64 encoding")
+      {:valid, _} -> add_error(changeset, field, "unrecognized file type")
+      _too_short_binary -> add_error(changeset, field, "invalid file")
     end
   end
 
@@ -374,21 +375,11 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
     |> Map.new(&{&1 |> Base.decode16!(), mime_type})
   end
 
-  #
-  # validate that the uploaded file starts with known magic bytes
-  # field is used for errors  # sets :image_mime to mime type if recognized
-  #
-  defp validate_file_signature(changeset, field, mime_field, file_signatures, binary) do
-    Enum.find_value(
-      file_signatures,
-      add_error(changeset, field, "unrecognized file type"),
-      fn {signature, mime} ->
-        case file_signature_match?(binary, signature) do
-          true -> put_change(changeset, mime_field, mime)
-          _ -> false
-        end
-      end
-    )
+  defp file_signature_match_mime?(binary, {file_signature, file_mime}) do
+    case file_signature_match?(binary, file_signature) do
+      true -> {true, file_mime}
+      other -> other
+    end
   end
 
   defp file_signature_match?(binary, file_signature) do
