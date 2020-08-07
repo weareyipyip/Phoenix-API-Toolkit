@@ -24,6 +24,24 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
 
   @order_by_format ~r/^(asc|desc|asc_nulls_last|desc_nulls_last|asc_nulls_first|desc_nulls_first):(\w{1,20})$/
 
+  @file_type_signatures %{
+    "image/png" => [
+      "89504E470D0A1A0A"
+    ],
+    "image/jpeg" => [
+      "FFD8FFDB",
+      "FFD8FFEE",
+      "FFD8FFE000104A4649460001",
+      "FFD8FFE1"
+    ],
+    "audio/mpeg" => [
+      "FFFB",
+      "FFF3",
+      "FFF2",
+      "494433"
+    ]
+  }
+
   @doc """
   Returns `{:ok, changeset.changes}` for a valid changeset and `{:error, changeset}` for an invalid changeset.
 
@@ -276,6 +294,98 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
       {:valid, _} -> add_error(changeset, field, "invalid file type")
       _too_short_binary -> add_error(changeset, field, "invalid file")
     end
+  end
+
+  @doc ~S"""
+  Validate that the change in `field` (if present) contains a base64-encoded file that starts with magic bytes corresponding to an allowed mime type, as defined in `allowed_types`. If so, the raw data is stored in `field` and the mime type is stored in `mime_field`.
+
+  ## Examples / doctests
+
+      @image_schema {%{}, %{image: :binary, mime: :string}}
+
+      defp test_validate_upload_mime(params) do
+        @image_schema
+        |> cast(params, [:image])
+        |> validate_upload_mime(:image, :mime, "image/png")
+      end
+
+      iex> test_validate_upload_mime(%{}).errors
+      []
+
+      iex> test_validate_upload_mime(%{image: "#$%#$%boom"}).errors
+      [image: {"invalid base64 encoding", []}]
+
+      iex> test_validate_upload_mime(%{image: "boom"}).errors
+      [image: {"unrecognized file type", []}]
+
+      iex> cs = test_validate_upload_mime(%{image: "iVBORw0KGgoAAAANSUhEUgAAAoAAAAGrBAMAAACi"})
+      iex> cs.errors
+      []
+      iex> cs.changes
+      %{image: "\x89PNG\r\n\x1A\n\0\0\0\rIHDR\0\0\x02\x80\0\0\x01\xAB\x04\x03\0\0\0\xA2", mime: "image/png"}
+  """
+  @spec validate_upload_mime(
+          Changeset.t(),
+          atom,
+          atom,
+          String.t() | list(String.t()) | %{required(binary()) => String.t()}
+        ) :: Changeset.t()
+  def validate_upload_mime(changeset, field, mime_field, file_signatures)
+      when is_binary(file_signatures) or is_list(file_signatures),
+      do: validate_upload_mime(changeset, field, mime_field, mime_types(file_signatures))
+
+  def validate_upload_mime(changeset, field, mime_field, file_signatures) do
+    with change when not is_nil(change) <- get_change(changeset, field),
+         {:ok, binary} <- Base.decode64(change),
+         %{valid?: true} = changeset <-
+           validate_file_signature(changeset, field, mime_field, file_signatures, binary) do
+      put_change(changeset, field, binary)
+    else
+      nil -> changeset
+      %Ecto.Changeset{} = changeset -> changeset
+      :error -> add_error(changeset, field, "invalid base64 encoding")
+    end
+  end
+
+  @doc """
+  Generate a map of allowed MIME types based on a given MIME type string or list of strings.
+  The generated map can be used for caching purposes or to append custom MIME types to.
+
+  ## Examples
+
+      iex> mime_types("image/png")
+      nil
+
+      iex> mime_types(["image/png", "image/jpeg"])
+      nil
+  """
+  @spec mime_types(String.t() | list(String.t())) :: %{required(binary()) => String.t()}
+  def mime_types(mime_types) when is_list(mime_types) do
+    Enum.reduce(mime_types, %{}, fn mime_type, result ->
+      Map.merge(result, mime_types(mime_type))
+    end)
+  end
+
+  def mime_types(mime_type) do
+    Map.get(@file_type_signatures, mime_type, [])
+    |> Map.new(&{&1 |> Base.decode16!(), mime_type})
+  end
+
+  #
+  # validate that the uploaded file starts with known magic bytes
+  # field is used for errors  # sets :image_mime to mime type if recognized
+  #
+  defp validate_file_signature(changeset, field, mime_field, file_signatures, binary) do
+    Enum.find_value(
+      file_signatures,
+      add_error(changeset, field, "unrecognized file type"),
+      fn {signature, mime} ->
+        case file_signature_match?(binary, signature) do
+          true -> put_change(changeset, mime_field, mime)
+          _ -> false
+        end
+      end
+    )
   end
 
   defp file_signature_match?(binary, file_signature) do
