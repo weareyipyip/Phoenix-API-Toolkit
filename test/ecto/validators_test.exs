@@ -15,10 +15,20 @@ defmodule PhoenixApiToolkit.Ecto.ValidatorsTest do
     order_by: :string,
     file: :string
   }
+  @image_schema %{
+    image: :binary,
+    mime: :string
+  }
   @orderables ~w(first_name last_name) |> MapSet.new()
 
   def changeset(changes \\ %{}) do
     {%{}, @schema} |> cast(changes, [:first_name, :last_name, :order_by, :file])
+  end
+
+  def test_validate_upload_mime(params) do
+    {%{}, @image_schema}
+    |> cast(params, [:image])
+    |> validate_upload_mime(:image, :mime, "image/png")
   end
 
   doctest PhoenixApiToolkit.Ecto.Validators

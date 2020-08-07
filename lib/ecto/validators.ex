@@ -301,10 +301,13 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
 
   ## Examples / doctests
 
-      @image_schema {%{}, %{image: :binary, mime: :string}}
+      @image_schema %{
+        image: :binary,
+        mime: :string
+      }
 
-      defp test_validate_upload_mime(params) do
-        @image_schema
+      def test_validate_upload_mime(params) do
+        {%{}, @image_schema}
         |> cast(params, [:image])
         |> validate_upload_mime(:image, :mime, "image/png")
       end
@@ -354,10 +357,10 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
   ## Examples
 
       iex> mime_types("image/png")
-      nil
+      %{<<137, 80, 78, 71, 13, 10, 26, 10>> => "image/png"}
 
       iex> mime_types(["image/png", "image/jpeg"])
-      nil
+      %{<<137, 80, 78, 71, 13, 10, 26, 10>> => "image/png", <<255, 216, 255, 219>> => "image/jpeg", <<255, 216, 255, 224, 0, 16, 74, 70, 73, 70, 0, 1>> => "image/jpeg", <<255, 216, 255, 225>> => "image/jpeg", <<255, 216, 255, 238>> => "image/jpeg"}
   """
   @spec mime_types(String.t() | list(String.t())) :: %{required(binary()) => String.t()}
   def mime_types(mime_types) when is_list(mime_types) do
