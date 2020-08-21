@@ -53,7 +53,15 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
 
 
       @filter_definitions [
-        literals: [:id, :username, :address, :balance],
+        atom_keys: true,
+        string_keys: true,
+        limit: true,
+        offset: true,
+        order_by: true,
+        literals: [:id, :username, :address, :balance, role_name: {:role, :name}],
+        literal_lists: [:address],
+        prefix_search: [username_prefix: {:user, :username}],
+        search: [username_search: :username],
         sets: [:roles],
         smaller_than: [
           inserted_before: :inserted_at,
@@ -65,14 +73,25 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
         ]
       ]
 
-      # a custom filter function
+      @doc \"\"\"
+      Custom filter function
+      \"\"\"
       def by_group_name(query, group_name) do
-        from(
-          [user: user] in query,
-          join: group in assoc(user, :group),
-          as: :group,
-          where: group.name == ^group_name
-        )
+        where(query, [user: user], user.group_name == ^group_name)
+      end
+
+      @doc \"\"\"
+      Function to resolve named bindings by dynamically joining them into the query.
+      \"\"\"
+      def resolve_binding(query, named_binding) do
+        if has_named_binding?(query, named_binding) do
+          query
+        else
+          case named_binding do
+            :role -> join(query, :left, [user: user], role in "roles", as: :role)
+            _ -> query
+          end
+        end
       end
 
       @doc \"\"\"
@@ -84,8 +103,11 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
         from(user in "users", as: :user)
         |> apply_filters(filters, fn
           # Add custom filters first and fallback to standard filters
-          {:group_name, value}, query -> by_group_name(query, value)
-          filter, query -> standard_filters(query, filter, :user, @filter_definitions)
+          {:group_name, value}, query ->
+            by_group_name(query, value)
+
+          filter, query ->
+            standard_filters(query, filter, :user, @filter_definitions, &resolve_binding/2)
         end)
       end
 
@@ -94,28 +116,57 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
       #Ecto.Query<from u0 in "users", as: :user>
 
       # let's do some filtering
-      iex> list_with_standard_filters(%{username: "Peter", balance_lt: 50.00, address: ["sesame street"]})
-      #Ecto.Query<from u0 in "users", as: :user, where: u0.address in ^["sesame street"], where: u0.balance < ^50.0, where: u0.username == ^"Peter">
+      iex> list_with_standard_filters(%{username: "Peter", balance_lt: 50.00, address: "sesame street"})
+      #Ecto.Query<from u0 in "users", as: :user, where: u0.address == ^"sesame street", where: u0.balance < ^50.0, where: u0.username == ^"Peter">
+
+      # associations can be dynamically joined into the query, only when necessary
+      iex> list_with_standard_filters(%{role_name: "admin"})
+      #Ecto.Query<from u0 in "users", as: :user, left_join: r1 in "roles", as: :role, on: true, where: r1.name == ^"admin">
 
       # limit, offset, and order_by are supported
-      iex> list_with_standard_filters(%{limit: 10, offset: 1, order_by: {:address, :desc}})
+      iex> list_with_standard_filters(%{"limit" => 10, offset: 1, order_by: [desc: :address]})
       #Ecto.Query<from u0 in "users", as: :user, order_by: [desc: u0.address], limit: ^10, offset: ^1>
+
+      # order_by can use association fields as well, which are dynamically joined in that case
+      iex> list_with_standard_filters(%{order_by: [asc: {:role, :name}]})
+      #Ecto.Query<from u0 in "users", as: :user, left_join: r1 in "roles", as: :role, on: true, order_by: [asc: r1.name]>
+
+      # order_by can use literal aliases as well, without breaking dynamic joining
+      iex> list_with_standard_filters(%{order_by: [asc: :role_name]})
+      #Ecto.Query<from u0 in "users", as: :user, left_join: r1 in "roles", as: :role, on: true, order_by: [asc: r1.name]>
 
       # complex custom filters can be combined with the standard filters
       iex> list_with_standard_filters(%{group_name: "admins", balance_gte: 50.00})
-      #Ecto.Query<from u0 in "users", as: :user, join: g1 in assoc(u0, :group), as: :group, where: u0.balance >= ^50.0, where: g1.name == ^"admins">
+      #Ecto.Query<from u0 in "users", as: :user, where: u0.balance >= ^50.0, where: u0.group_name == ^"admins">
 
-      # other fields are ignored / passed through
-      iex> list_with_standard_filters(%{number_of_arms: 3, order_by: {:boom, :asc}})
-      #Ecto.Query<from u0 in "users", as: :user>
+      # unsupported filters raise, but nonexistent order_by fields do not (although Ecto will raise, naturally)
+      iex> list_with_standard_filters(%{number_of_arms: 3})
+      ** (CaseClauseError) no case clause matching: {:number_of_arms, 3}
+      iex> list_with_standard_filters(%{order_by: [:number_of_arms]})
+      #Ecto.Query<from u0 in "users", as: :user, order_by: [asc: u0.number_of_arms]>
 
-  This will generate the following docs:
+      iex> list_with_standard_filters(%{address: ["sesame street"], username_prefix: "foo", username_search: "bar"})
+      #Ecto.Query<from u0 in "users", as: :user, where: u0.address in ^["sesame street"], where: ilike(u0.username, ^"foo%"), where: ilike(u0.username, ^"%bar%")>
+
+      # you can order by multiple fields and specify bindings
+      iex> list_with_standard_filters(%{"balance" => 12, "order_by" => [asc: {:user, :username}, desc: :role]})
+      #Ecto.Query<from u0 in "users", as: :user, where: u0.balance == ^12, order_by: [asc: u0.username], order_by: [desc: u0.role]>
+
+  Note that the aim is not to emulate GraphQL in a REST API. It is not possible for the API client to specify which fields the API should return or how deep the nesting should be: it is still necessary to develop different REST resources for differently-shaped responses (for example, `/api/users` or `/api/users_with_groups` etc). In a REST API, simple filtering and sorting functionality can be supported, however, without going the full GraphQL route. We will not discuss the pro's and cons of GraphQL versus REST here, but we maintain that GraphQL is not a drop-in replacement for REST API's in every situation and there is still a place for (flexible) REST API's, for example when caching on anything other than the client itself is desired or when development simplicity trumps complete flexibility and the number of different clients is limited.
+
+  ## Generating documentation
+
+  The call to `generate_docs/2` in the docstring of `list_with_standard_filters/1` will generate the following docs:
 
       iex> generate_filter_docs(@filter_definitions, literals: [:group_name])
-      "## Literal filters\\n\\nLiteral filters are compared for equality (is the filter value equal to the row's value?).\\nThe following filters are supported:\\n* `address`\\n* `balance`\\n* `group_name`\\n* `id`\\n* `username`\\n\\n## Set filters\\n\\nSet filters are compared for set membership (is the filter value a member of the row's set?).\\nThe following filters are supported:\\n* `roles`\\n\\n## Smaller-than filters\\n\\nSmaller-than filters are compared relatively (is the filter value smaller than the row value?).\\nThe following filters are supported:\\n\\nFilter | Must be smaller than\\n--- | ---\\n`balance_lt` | `balance`\\n`inserted_before` | `inserted_at`\\n\\n## Greater-than-or-equal-to filters\\n\\nGreater-than-or-equals filters are compared relatively (is the filter value greater than or equal to the row value?).\\nThe following filters are supported:\\n\\nFilter | Must be greater than or equal to\\n--- | ---\\n`balance_gte` | `balance`\\n`inserted_at_or_after` | `inserted_at`\\n\\n## Order-by filters\\n\\nOrder-by filters take an argument of format `{:field, :direction}`, so for example\\n`{:username, :desc}`, and sort the result set.\\nThe following fields are supported:\\n* `address`\\n* `balance`\\n* `id`\\n* `username`\\n\\nThe supported directions can be found in the docs of `Ecto.Query.order_by/3`.\\n\\n## Pagination filters\\n\\nThe pagination filters are `limit` and `offset`.\\nThese filters invoke `Ecto.Query.limit/2` and `Ecto.Query.offset/2` respectively.\\n"
+      "## Filter key types\\n\\nFilter keys may be both atoms and strings, e.g. %{username: \\"Dave123\\", \\"first_name\\" => \\"Dave\\"}\\n\\n## Literal filters\\n\\nLiteral filters are compared for equality (is the filter value equal to the row's value?).\\nThe following filters are supported:\\n* `address`\\n* `balance`\\n* `group_name`\\n* `id`\\n* `role_name` (actual field is role.name)\\n* `username`\\n\\n## Or-list filters\\n\\nOr-list filters are compared for equality to any of the values in the list (is any of the filter values equal to the row's value?, i.e. is user.id in [1,2,3]).\\nThe following filters are supported:\\n* `address`\\n\\n## Set filters\\n\\nSet filters are compared for set membership (is the filter value a member of the row's set?).\\nThe following filters are supported:\\n* `roles`\\n\\n## Smaller-than filters\\n\\nSmaller-than filters are compared relatively (is the filter value smaller than the row value?).\\nThe following filters are supported:\\n\\nFilter | Must be smaller than\\n--- | ---\\n`balance_lt` | `balance`\\n`inserted_before` | `inserted_at`\\n\\n## Greater-than-or-equal-to filters\\n\\nGreater-than-or-equals filters are compared relatively (is the filter value greater than or equal to the row value?).\\nThe following filters are supported:\\n\\nFilter | Must be greater than or equal to\\n--- | ---\\n`balance_gte` | `balance`\\n`inserted_at_or_after` | `inserted_at`\\n\\n## Prefix-search filters\\n\\nPrefix-search filters are compared for case-insensitive string prefix match (does the row's value start with the filter value?).\\nThe following filters are supported:\\n* `username_prefix` (actual field is user.username)\\n\\n## Search filters\\n\\nSearch filters are compared for partial case-insensitive string match (does the row's value contain the filter value?).\\nThe following filters are supported:\\n* `username_search` (actual field is username)\\n\\n## Order-by filters\\n\\nOrder-by filters take a list argument, that can consist of the following elements:\\n- `field` will sort on the specified field of the default binding in ascending order\\n- `{:direction, :field}` will sort on the specified field of the default binding in the specified direction\\n- `{:direction, {:binding, :field}}` will sort on the specified field of the specified binding in the specified direction.\\n\\nNote that the value of `order_by` filters must consist of atoms, even with `string_keys` enabled.\\n\\nAll fields present in the query on any named binding are supported, including field name aliases specified in the filter definitions under literals (like `literals: [role_name: {:role, :name}]`, which is available as `:role_name`).\\n\\nThe supported directions can be found in the docs of `Ecto.Query.order_by/3`.\\n\\n## Limit filter\\n\\nThe `limit` filter sets a maximum for the number of rows in the result set and may be used for pagination.\\n\\n## Offset filter\\n\\nThe `offset` filter skips a number of rows in the result set and may be used for pagination.\\n\\n"
 
   Which will be rendered as:
 
+  > ## Filter key types
+  >
+  > Filter keys may be both atoms and strings, e.g. %{username: "Dave123", "first_name" => "Dave"}
+  >
   > ## Literal filters
   >
   > Literal filters are compared for equality (is the filter value equal to the row's value?).
@@ -124,7 +175,14 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
   > * `balance`
   > * `group_name`
   > * `id`
+  > * `role_name` (actual field is role.name)
   > * `username`
+  >
+  > ## Or-list filters
+  >
+  > Or-list filters are compared for equality to any of the values in the list (is any of the filter values equal to the row's value?, i.e. is user.id in [1,2,3]).
+  > The following filters are supported:
+  > * `address`
   >
   > ## Set filters
   >
@@ -152,22 +210,40 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
   > `balance_gte` | `balance`
   > `inserted_at_or_after` | `inserted_at`
   >
+  > ## Prefix-search filters
+  >
+  > Prefix-search filters are compared for case-insensitive string prefix match (does the row's value start with the filter value?).
+  > The following filters are supported:
+  > * `username_prefix` (actual field is user.username)
+  >
+  > ## Search filters
+  >
+  > Search filters are compared for partial case-insensitive string match (does the row's value contain the filter value?).
+  > The following filters are supported:
+  > * `username_search` (actual field is username)
+  >
   > ## Order-by filters
   >
-  > Order-by filters take an argument of format `{:field, :direction}`, so for example
-  > `{:username, :desc}`, and sort the result set.
-  > The following fields are supported:
-  > * `address`
-  > * `balance`
-  > * `id`
-  > * `username`
+  > Order-by filters take a list argument, that can consist of the following elements:
+  > - `field` will sort on the specified field of the default binding in ascending order
+  > - `{:direction, :field}` will sort on the specified field of the default binding in the specified direction
+  > - `{:direction, {:binding, :field}}` will sort on the specified field of the specified binding in the specified direction.
+  >
+  > Note that the value of `order_by` filters must consist of atoms, even with `string_keys` enabled.
+  >
+  > All fields present in the query on any named binding are supported, including field name aliases specified in the filter definitions under literals (like `literals: [role_name: {:role, :name}]`, which is available as `:role_name`).
   >
   > The supported directions can be found in the docs of `Ecto.Query.order_by/3`.
   >
-  > ## Pagination filters
+  > ## Limit filter
   >
-  > The pagination filters are `limit` and `offset`.
-  > These filters invoke `Ecto.Query.limit/2` and `Ecto.Query.offset/2` respectively.
+  > The `limit` filter sets a maximum for the number of rows in the result set and may be used for pagination.
+  >
+  > ## Offset filter
+  >
+  > The `offset` filter skips a number of rows in the result set and may be used for pagination.
+  >
+  >
   """
   # to generate: PhoenixApiToolkit.Ecto.DynamicFilters.generate_filter_docs([], []) |> String.replace("\n", "\n> ") |> IO.puts
   alias Ecto.Query
@@ -175,7 +251,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
   require Ecto.Query
 
   @typedoc "Format of a filter that can be applied to a query to narrow it down"
-  @type filter :: {atom(), any()}
+  @type filter :: {atom() | String.t(), any()}
 
   @doc """
   Applies `filters` to `query` by reducing `filters` using `filter_reductor`.
@@ -191,14 +267,30 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
   end
 
   @typedoc """
+  Either
+  - `atom` filter name and name of field of default binding
+  - `{filter_name, actual_field}` if the filter name is different from the name of the field of the default binding
+  - `{filter_name, {binding, actual_field}}` if the field is a field of another named binding
+  """
+  @type filter_definition :: atom | {atom, atom} | {atom, {atom, atom}}
+
+  @typedoc """
   Filter definitions supported by `standard_filters/4`.
-  A keyword list of filter types and the fields for which they should be generated.
+  A keyword list of filter types and the filter definitions for which they should be generated.
   """
   @type filter_definitions :: [
-          literals: [atom],
-          sets: [atom],
-          smaller_than: keyword(atom),
-          greater_than_or_equals: keyword(atom)
+          atom_keys: boolean(),
+          string_keys: boolean(),
+          limit: boolean(),
+          offset: boolean(),
+          order_by: boolean(),
+          literals: [filter_definition()],
+          or_lists: [filter_definition()],
+          prefix_search: [filter_definition()],
+          search: [filter_definition()],
+          sets: [filter_definition()],
+          smaller_than: [filter_definition()],
+          greater_than_or_equals: [filter_definition()]
         ]
 
   @typedoc """
@@ -206,11 +298,13 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
   A keyword list of filter types and the fields for which documentation should be generated.
   """
   @type extra_filter_definitions :: [
-          literals: [atom],
-          sets: [atom],
-          smaller_than: keyword(atom),
-          greater_than_or_equals: keyword(atom),
-          order_by: [atom]
+          literals: [filter_definition()],
+          or_lists: [filter_definition()],
+          prefix_search: [filter_definition()],
+          search: [filter_definition()],
+          sets: [filter_definition()],
+          smaller_than: keyword(filter_definition()),
+          greater_than_or_equals: keyword(filter_definition())
         ]
 
   @doc """
@@ -223,80 +317,179 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
   Mandatory parameters:
   - `query`: the Ecto query that is narrowed down
   - `filter`: the current filter that is being applied to `query`
-  - `main_binding`: the named binding of the Ecto model that generic queries are applied to
-  - `filter_definitions`: keyword list of filter types and the fields for which they should be generated
+  - `default_binding`: the named binding of the Ecto model that generic queries are applied to, unless specified otherwise
+  - `filter_definitions`: keyword list of filter types and the filter definitions for which they should be generated
+
+  Optional parameters:
+  - resolve_binding: a function that can be passed in to dynamically join the query to resolve named bindings requested in filters
 
   The options supported by the `filter_definitions` parameter are:
-  - `literals`: fields comparable by equality, also the fields by which the query can be ordered.
-  - `sets`: fields comparable by set membership
-  - `smaller_than`: keyword list of virtual "smaller_than" fields and the actual field with which a smaller-than comparison is made
-  - `greater_than_or_equals`: keyword list of virtual "greater_than_or_equals" fields and the actual field with which a greater-than-or-equal-to comparison is made
-
-  For ordering on multiple columns, this is a start:
-  ```
-   {:order_by, fields}, q ->
-        Enum.reduce(fields, q, fn {binding, dir, fld}, q ->
-          order_by(q, [{^binding, bd}], [{^dir, field(bd, ^fld)}])
-        end)
+  - `literals`: compare by equality, also the fields by which the query can be ordered.
+  - `sets`: compare by set membership
+  - `smaller_than`: compare by smaller-than, e.g. user.score < filter value
+  - `greater_than_or_equals`: compare by greater-than-or-equal to, e.g. user.score >= filter value
+  - `or_lists`: compare by equality to any of the values in the list, e.g. user.id in [1, 2, 3]
+  - `prefix_search`: compare by case-insensitive string prefix, e.g. user.name starts with "dav"
+  - `search`: compare by case-insensitive string contains, e.g. user.name contains "av"
+  - `atom_keys`: supports filter keys as atoms, e.g. `%{username: "Dave"}`
+  - `string_keys`: supports filter keys as strings, e.g. `%{"username" => "Dave"}`. Note that order_by VALUES must always be atoms: `%{"order_by" => :username}` will work but `%{order_by: "username"}` will not.
+  - `limit`: enables limit filter
+  - `offset`: enables offset filter
+  - `order_by`: enables order_by filter
   ```
   """
-  @spec standard_filters(Query.t(), filter, atom, filter_definitions) :: any
-  defmacro standard_filters(query, filter, main_binding, filter_definitions) do
+  @spec standard_filters(
+          Query.t(),
+          filter,
+          atom,
+          filter_definitions,
+          (Query.t(), atom() -> Query.t())
+        ) :: any
+  defmacro standard_filters(
+             query,
+             filter,
+             default_binding,
+             filter_definitions,
+             resolve_binding
+           )
+
+  defmacro standard_filters(query, filter, def_bnd, filter_definitions, res_binding) do
     # Call Macro.expand/2 in case filter_definitions is a module attribute
-    filters = filter_definitions |> Macro.expand(__CALLER__)
+    definitions = filter_definitions |> Macro.expand(__CALLER__)
 
     # create clauses for the eventual case statement (as raw AST!)
     clauses =
       []
-      |> add_clause(quote(do: {:limit, val}), quote(do: limit(query, ^val)))
-      |> add_clause(quote(do: {:offset, val}), quote(do: offset(query, ^val)))
-      |> add_clause_for_each(filters[:literals] || [], fn literal, clauses ->
+      |> maybe_support_limit(definitions)
+      |> maybe_support_offset(definitions)
+      |> maybe_support_order_by(definitions, def_bnd, res_binding)
+      # filters for or-equality matches of lists of values
+      |> add_clause_for_each(definitions[:or_lists], def_bnd, fn {filt, bnd, fld}, clauses ->
         clauses
         |> add_clause(
-          quote(do: {unquote(literal), val} when is_list(val)),
-          quote(do: where(query, [{^main_binding, bd}], field(bd, unquote(literal)) in ^val))
-        )
-        |> add_clause(
-          quote(do: {unquote(literal), val}),
-          quote(do: where(query, [{^main_binding, bd}], field(bd, unquote(literal)) == ^val))
-        )
-        |> add_clause(
-          quote(do: {:order_by, {unquote(literal), dir}}),
-          quote(do: order_by(query, [{^main_binding, bd}], [{^dir, field(bd, unquote(literal))}]))
+          quote do
+            {flt, val} when flt in unquote(create_keylist(definitions, filt)) and is_list(val)
+          end,
+          quote do
+            query
+            |> unquote(res_binding).(unquote(bnd))
+            |> where([{^unquote(bnd), bd}], field(bd, unquote(fld)) in ^val)
+          end
         )
       end)
-      |> add_clause_for_each(filters[:sets] || [], fn set, clauses ->
+      # filters for equality matches
+      |> add_clause_for_each(definitions[:literals], def_bnd, fn {filt, bnd, fld}, clauses ->
+        clauses
+        |> add_clause(
+          quote do
+            {flt, val} when flt in unquote(create_keylist(definitions, filt))
+          end,
+          quote do
+            query
+            |> unquote(res_binding).(unquote(bnd))
+            |> where([{^unquote(bnd), bd}], field(bd, unquote(fld)) == ^val)
+          end
+        )
+      end)
+      # filters for prefix searches using ilike
+      |> add_clause_for_each(definitions[:prefix_search], def_bnd, fn {filt, bnd, fld}, clauses ->
+        clauses
+        |> add_clause(
+          quote do
+            {flt, val} when flt in unquote(create_keylist(definitions, filt))
+          end,
+          quote do
+            query
+            |> unquote(res_binding).(unquote(bnd))
+            |> where([{^unquote(bnd), bd}], ilike(field(bd, unquote(fld)), ^(val <> "%")))
+          end
+        )
+      end)
+      # filters for searches using ilike
+      |> add_clause_for_each(definitions[:search], def_bnd, fn {filt, bnd, fld}, clauses ->
+        clauses
+        |> add_clause(
+          quote do
+            {flt, val} when flt in unquote(create_keylist(definitions, filt))
+          end,
+          quote do
+            query
+            |> unquote(res_binding).(unquote(bnd))
+            |> where([{^unquote(bnd), bd}], ilike(field(bd, unquote(fld)), ^("%" <> val <> "%")))
+          end
+        )
+      end)
+      # filters for set membership matches
+      |> add_clause_for_each(definitions[:sets], def_bnd, fn {filt, bnd, fld}, clauses ->
         add_clause(
           clauses,
-          quote(do: {unquote(set), val}),
-          quote(do: where(query, [{^main_binding, bd}], ^val in field(bd, unquote(set))))
+          quote do
+            {flt, val} when flt in unquote(create_keylist(definitions, filt))
+          end,
+          quote do
+            query
+            |> unquote(res_binding).(unquote(bnd))
+            |> where([{^unquote(bnd), bd}], ^val in field(bd, unquote(fld)))
+          end
         )
       end)
-      |> add_clause_for_each(filters[:smaller_than] || [], fn {fld, real_fld}, clauses ->
+      # filters for smaller-than matches
+      |> add_clause_for_each(definitions[:smaller_than], def_bnd, fn {filt, bnd, fld}, clauses ->
         add_clause(
           clauses,
-          quote(do: {unquote(fld), val}),
-          quote(do: where(query, [{^main_binding, bd}], field(bd, unquote(real_fld)) < ^val))
+          quote do
+            {flt, val} when flt in unquote(create_keylist(definitions, filt))
+          end,
+          quote do
+            query
+            |> unquote(res_binding).(unquote(bnd))
+            |> where([{^unquote(bnd), bd}], field(bd, unquote(fld)) < ^val)
+          end
         )
       end)
-      |> add_clause_for_each(
-        filters[:greater_than_or_equals] || [],
-        fn {fld, real_fld}, clauses ->
-          add_clause(
-            clauses,
-            quote(do: {unquote(fld), val}),
-            quote(do: where(query, [{^main_binding, bd}], field(bd, unquote(real_fld)) >= ^val))
-          )
-        end
-      )
-      |> add_clause(quote(do: _), quote(do: query))
+      # filters for greater-than-or-equal-to matches
+      |> add_clause_for_each(definitions[:greater_than_or_equals], def_bnd, fn {filt, bnd, fld},
+                                                                               clauses ->
+        add_clause(
+          clauses,
+          quote do
+            {flt, val} when flt in unquote(create_keylist(definitions, filt))
+          end,
+          quote do
+            query
+            |> unquote(res_binding).(unquote(bnd))
+            |> where([{^unquote(bnd), bd}], field(bd, unquote(fld)) >= ^val)
+          end
+        )
+      end)
 
     # create the case statement based on the clauses
     quote generated: true do
       query = unquote(query)
-      main_binding = unquote(main_binding)
+      def_bnd = unquote(def_bnd)
 
       case unquote(filter), do: unquote(clauses)
+    end
+  end
+
+  @doc """
+  Same as `standard_filters/5` but does not support dynamically resolving named bindings.
+  """
+  @spec standard_filters(
+          Query.t(),
+          filter,
+          atom,
+          filter_definitions
+        ) :: any
+  defmacro standard_filters(query, filter, default_binding, filter_definitions) do
+    quote do
+      standard_filters(
+        unquote(query),
+        unquote(filter),
+        unquote(default_binding),
+        unquote(filter_definitions),
+        fn q, _ -> q end
+      )
     end
   end
 
@@ -310,38 +503,177 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
   @spec generate_filter_docs(filter_definitions(), extra_filter_definitions()) :: binary
   def generate_filter_docs(filters, extras \\ []) do
     literals = get_filters(:literals, filters, extras)
-    order_by = get_filters(:literals, filters, literals: extras[:order_by] || [])
     sets = get_filters(:sets, filters, extras)
     smaller_than = get_filters(:smaller_than, filters, extras)
     greater_than_or_equals = get_filters(:greater_than_or_equals, filters, extras)
+    or_lists = get_filters(:or_lists, filters, extras)
+    prefix_search = get_filters(:prefix_search, filters, extras)
+    search = get_filters(:search, filters, extras)
 
-    literals_docs(literals) <>
+    key_type_docs(filters) <>
+      literals_docs(literals) <>
+      or_lists_docs(or_lists) <>
       sets_docs(sets) <>
       smaller_than_docs(smaller_than) <>
       greater_than_or_equals_docs(greater_than_or_equals) <>
-      order_by_docs(order_by) <>
-      """
-      ## Pagination filters
-
-      The pagination filters are `limit` and `offset`.
-      These filters invoke `Ecto.Query.limit/2` and `Ecto.Query.offset/2` respectively.
-      """
+      prefix_search_docs(prefix_search) <>
+      search_docs(search) <>
+      order_by_docs(filters[:order_by]) <>
+      limit_docs(filters[:limit]) <> offset_docs(filters[:offset])
   end
 
   ############
   # Privates #
   ############
 
+  # creates a list for use in a guard (only in macro) depending on the caller's key-types opt-ins
+  defp create_keylist(definitions, key) do
+    cond do
+      definitions[:atom_keys] && definitions[:string_keys] -> [key, "#{key}"]
+      definitions[:atom_keys] -> [key]
+      definitions[:string_keys] -> ["#{key}"]
+      true -> raise "One of :atom_keys or :string_keys must be enabled"
+    end
+  end
+
+  # returns a filter definitions match key as {filter_name, binding_name, field_name}
+  defp parse_filter_definition_key({filter, {binding, field}}, _default_binding) do
+    {filter, binding, field}
+  end
+
+  defp parse_filter_definition_key({filter, field}, default_binding) do
+    {filter, default_binding, field}
+  end
+
+  defp parse_filter_definition_key(filter, default_binding) do
+    {filter, default_binding, filter}
+  end
+
+  # adds support for a limit-filter if enabled by the caller
+  defp maybe_support_limit(clauses, definitions) do
+    if definitions[:limit] do
+      add_clause(
+        clauses,
+        quote(do: {flt, val} when flt in unquote(create_keylist(definitions, :limit))),
+        quote(do: limit(query, ^val))
+      )
+    else
+      clauses
+    end
+  end
+
+  # adds support for an offset-filter if enabled by the caller
+  defp maybe_support_offset(clauses, definitions) do
+    if definitions[:offset] do
+      add_clause(
+        clauses,
+        quote(do: {flt, val} when flt in unquote(create_keylist(definitions, :offset))),
+        quote(do: offset(query, ^val))
+      )
+    else
+      clauses
+    end
+  end
+
+  # adds support for an order_by-filter if enabled by the caller
+  # the order_by filter supports multiple order-by fields
+  # literal aliases (like `role_name: {:role, :name}`) are resolved as well
+  defp maybe_support_order_by(clauses, definitions, def_bnd, resolve_binding) do
+    if definitions[:order_by] do
+      literal_filters =
+        (definitions[:literals] || [])
+        |> Stream.map(&parse_filter_definition_key(&1, def_bnd))
+        |> Enum.map(fn {filter_name, bnd, fld} -> {filter_name, {bnd, fld}} end)
+
+      add_clause(
+        clauses,
+        quote do
+          {flt, val} when flt in unquote(create_keylist(definitions, :order_by)) and is_list(val)
+        end,
+        quote do
+          resolve_binding = unquote(resolve_binding)
+
+          Enum.reduce(val, query, fn
+            {dir, {bnd, fld}}, q ->
+              q |> resolve_binding.(bnd) |> order_by([{^bnd, bd}], [{^dir, field(bd, ^fld)}])
+
+            {dir, fld}, q ->
+              {bnd, fld} = Keyword.get(unquote(literal_filters), fld, {unquote(def_bnd), fld})
+
+              q
+              |> resolve_binding.(bnd)
+              |> order_by([{^bnd, bd}], [{^dir, field(bd, ^fld)}])
+
+            fld, q ->
+              {bnd, fld} = Keyword.get(unquote(literal_filters), fld, {unquote(def_bnd), fld})
+
+              q |> resolve_binding.(bnd) |> order_by([{^bnd, bd}], field(bd, ^fld))
+          end)
+        end
+      )
+    else
+      clauses
+    end
+  end
+
+  # add a single clause to the clauses list
   defp add_clause(clauses, clause, block) do
     clauses ++ [{:->, [], [[clause], block]}]
   end
 
-  defp add_clause_for_each(clauses, enumerable, reductor) do
-    Enum.reduce(enumerable, clauses, reductor)
+  # add a new clause to the clauses list for each filter definition in the enumerable
+  # the reductor must create a new clause from every filter definition
+  defp add_clause_for_each(clauses, enumerable, default_binding, reductor) do
+    (enumerable || [])
+    |> Enum.map(&parse_filter_definition_key(&1, default_binding))
+    |> Enum.reduce(clauses, reductor)
   end
 
+  ###################################
+  # Documentation generator helpers #
+  ###################################
+
   defp get_filters(type, filters, extras) do
-    ([] ++ Keyword.get(filters, type, []) ++ Keyword.get(extras, type, [])) |> Enum.sort()
+    ([] ++ maybe_get_filters(filters, type) ++ maybe_get_filters(extras, type))
+    |> Enum.map(&parse_filter/1)
+    |> Enum.sort_by(fn
+      {filter_name, _field} -> filter_name
+      filter -> filter
+    end)
+  end
+
+  defp maybe_get_filters(nil, _type), do: []
+  defp maybe_get_filters(enum, type), do: enum[type] || []
+
+  defp parse_filter({filter_name, {binding, field}}), do: {filter_name, "#{binding}.#{field}"}
+  defp parse_filter(filter), do: filter
+
+  defp key_type_docs(filters) do
+    cond do
+      filters[:atom_keys] && filters[:string_keys] ->
+        """
+        ## Filter key types
+
+        Filter keys may be both atoms and strings, e.g. %{username: "Dave123", "first_name" => "Dave"}
+
+        """
+
+      filters[:atom_keys] ->
+        """
+        ## Filter key types
+
+        Filter keys may only be atoms, e.g. %{username: "Dave123"}
+
+        """
+
+      filters[:string_keys] ->
+        """
+        ## Filter key types
+
+        Filter keys may only be strings, e.g. %{"first_name" => "Dave"}
+
+        """
+    end
   end
 
   defp literals_docs([]), do: ""
@@ -353,6 +685,19 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
     Literal filters are compared for equality (is the filter value equal to the row's value?).
     The following filters are supported:
     #{literals |> to_list()}
+
+    """
+  end
+
+  defp or_lists_docs([]), do: ""
+
+  defp or_lists_docs(or_lists) do
+    """
+    ## Or-list filters
+
+    Or-list filters are compared for equality to any of the values in the list (is any of the filter values equal to the row's value?, i.e. is user.id in [1,2,3]).
+    The following filters are supported:
+    #{or_lists |> to_list()}
 
     """
   end
@@ -402,24 +747,81 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
     """
   end
 
-  defp order_by_docs([]), do: ""
-
-  defp order_by_docs(order_by) do
+  defp order_by_docs(true) do
     """
     ## Order-by filters
 
-    Order-by filters take an argument of format `{:field, :direction}`, so for example
-    `{:username, :desc}`, and sort the result set.
-    The following fields are supported:
-    #{order_by |> to_list()}
+    Order-by filters take a list argument, that can consist of the following elements:
+    - `field` will sort on the specified field of the default binding in ascending order
+    - `{:direction, :field}` will sort on the specified field of the default binding in the specified direction
+    - `{:direction, {:binding, :field}}` will sort on the specified field of the specified binding in the specified direction.
+
+    Note that the value of `order_by` filters must consist of atoms, even with `string_keys` enabled.
+
+    All fields present in the query on any named binding are supported, including field name aliases specified in the filter definitions under literals (like `literals: [role_name: {:role, :name}]`, which is available as `:role_name`).
 
     The supported directions can be found in the docs of `Ecto.Query.order_by/3`.
 
     """
   end
 
-  defp to_list(list),
-    do: Enum.reduce(list, "", fn e, acc -> acc <> "* `#{e}`\n" end) |> String.trim_trailing("\n")
+  defp order_by_docs(_), do: ""
+
+  defp limit_docs(true) do
+    """
+    ## Limit filter
+
+    The `limit` filter sets a maximum for the number of rows in the result set and may be used for pagination.
+
+    """
+  end
+
+  defp limit_docs(_), do: ""
+
+  defp offset_docs(true) do
+    """
+    ## Offset filter
+
+    The `offset` filter skips a number of rows in the result set and may be used for pagination.
+
+    """
+  end
+
+  defp offset_docs(_), do: ""
+
+  defp prefix_search_docs([]), do: ""
+
+  defp prefix_search_docs(prefix_search) do
+    """
+    ## Prefix-search filters
+
+    Prefix-search filters are compared for case-insensitive string prefix match (does the row's value start with the filter value?).
+    The following filters are supported:
+    #{prefix_search |> to_list()}
+
+    """
+  end
+
+  defp search_docs([]), do: ""
+
+  defp search_docs(search) do
+    """
+    ## Search filters
+
+    Search filters are compared for partial case-insensitive string match (does the row's value contain the filter value?).
+    The following filters are supported:
+    #{search |> to_list()}
+
+    """
+  end
+
+  defp to_list(list) do
+    Enum.reduce(list, "", fn
+      {filter_name, field}, acc -> "#{acc}* `#{filter_name}` (actual field is #{field})\n"
+      filter, acc -> "#{acc}* `#{filter}`\n"
+    end)
+    |> String.trim_trailing("\n")
+  end
 
   defp to_table(keyword) do
     Enum.reduce(keyword, "", fn {k, v}, acc -> acc <> "`#{k}` | `#{v}`\n" end)

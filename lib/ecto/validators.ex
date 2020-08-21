@@ -124,7 +124,7 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
       @orderables ~w(first_name last_name) |> MapSet.new()
 
       iex> changeset(%{order_by: "asc:last_name"}) |> validate_order_by(@orderables)
-      #Ecto.Changeset<action: nil, changes: %{order_by: {:last_name, :asc}}, errors: [], data: %{}, valid?: true>
+      #Ecto.Changeset<action: nil, changes: %{order_by: [asc: :last_name]}, errors: [], data: %{}, valid?: true>
 
       iex> changeset(%{order_by: "invalid"}) |> validate_order_by(@orderables)
       #Ecto.Changeset<action: nil, changes: %{order_by: "invalid"}, errors: [order_by: {"format is asc|desc:field", []}], data: %{}, valid?: false>
@@ -141,7 +141,7 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
          {:captures, [dir, field]} <-
            {:captures, Regex.run(@order_by_format, order_by, capture: :all_but_first)},
          {:supported, true, _field} <- {:supported, field in orderable_fields, field} do
-      put_change(changeset, :order_by, {String.to_atom(field), String.to_atom(dir)})
+      put_change(changeset, :order_by, [{String.to_atom(dir), String.to_atom(field)}])
     else
       {:captures, nil} -> add_error(changeset, :order_by, "format is asc|desc:field")
       {:supported, false, field} -> add_error(changeset, :order_by, "unknown field " <> field)

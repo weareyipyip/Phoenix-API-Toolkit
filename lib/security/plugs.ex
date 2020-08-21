@@ -107,38 +107,6 @@ defmodule PhoenixApiToolkit.Security.Plugs do
     |> put_resp_header("x-content-type-options", "nosniff")
   end
 
-  @deprecated "Use `&set_forwarded_ip/2` instead."
-  @doc """
-  DEPRECATED. Use `set_forwarded_ip/2` instead.
-
-  Assigns the client's IP to the conn as `client_ip`. Prefers IP in header `"x-forwarded-for"` over
-  the directly detected remote IP.
-
-  ## Examples
-
-      use Plug.Test
-
-      def conn_with_ip, do: conn(:get, "/") |> Map.put(:remote_ip, {127, 0, 0, 12})
-
-      # by default, the value of `remote_ip` is used
-      iex> (conn_with_ip() |> assign_client_ip()).assigns.client_ip
-      "127.0.0.12"
-
-      # if header "x-forwarded-for" is set, its value is preferred
-      iex> (conn_with_ip() |> put_req_header("x-forwarded-for", "10.0.0.1") |> assign_client_ip()).assigns.client_ip
-      "10.0.0.1"
-  """
-  @spec assign_client_ip(Conn.t(), Plug.opts()) :: Conn.t()
-  def assign_client_ip(conn, _opts \\ []) do
-    forwarded_ip =
-      case get_req_header(conn, "x-forwarded-for") do
-        [ip] -> ip
-        _ -> nil
-      end
-
-    assign(conn, :client_ip, forwarded_ip || conn.remote_ip |> :inet.ntoa() |> to_string())
-  end
-
   @doc """
   Set `conn.remote_ip` to the value in header `"x-forwarded-for"`, if present.
 

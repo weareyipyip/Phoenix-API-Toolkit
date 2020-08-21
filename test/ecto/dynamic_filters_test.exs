@@ -5,7 +5,15 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFiltersTest do
   require Ecto.Query
 
   @filter_definitions [
-    literals: [:id, :username, :address, :balance],
+    atom_keys: true,
+    string_keys: true,
+    limit: true,
+    offset: true,
+    order_by: true,
+    literals: [:id, :username, :address, :balance, role_name: {:role, :name}],
+    or_lists: [:address],
+    prefix_search: [username_prefix: {:user, :username}],
+    search: [username_search: :username],
     sets: [:roles],
     smaller_than: [
       inserted_before: :inserted_at,
@@ -16,6 +24,17 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFiltersTest do
       balance_gte: :balance
     ]
   ]
+
+  def resolve_binding(query, named_binding) do
+    if has_named_binding?(query, named_binding) do
+      query
+    else
+      case named_binding do
+        :role -> join(query, :left, [user: user], role in "roles", as: :role)
+        _ -> query
+      end
+    end
+  end
 
   def list_without_standard_filters(filters \\ %{}) do
     from(user in "users", as: :user)
@@ -32,20 +51,18 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFiltersTest do
   end
 
   def by_group_name(query, group_name) do
-    from(
-      [user: user] in query,
-      join: group in assoc(user, :group),
-      as: :group,
-      where: group.name == ^group_name
-    )
+    where(query, [user: user], user.group_name == ^group_name)
   end
 
   def list_with_standard_filters(filters \\ %{}) do
     from(user in "users", as: :user)
     |> apply_filters(filters, fn
       # Add custom filters first and fallback to standard filters
-      {:group_name, value}, query -> by_group_name(query, value)
-      filter, query -> standard_filters(query, filter, :user, @filter_definitions)
+      {:group_name, value}, query ->
+        by_group_name(query, value)
+
+      filter, query ->
+        standard_filters(query, filter, :user, @filter_definitions, &resolve_binding/2)
     end)
   end
 
