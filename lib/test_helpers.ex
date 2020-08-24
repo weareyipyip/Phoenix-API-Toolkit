@@ -320,4 +320,17 @@ defmodule PhoenixApiToolkit.TestHelpers do
   """
   @spec to_string_map(map) :: map
   def to_string_map(map), do: map |> Jason.encode!() |> Jason.decode!()
+
+  @doc """
+  Sets the request header "x-csrf-token", to comply with `PhoenixApiToolkit.Security.Plugs.ajax_csrf_protect()`
+
+  ## Examples / doctests
+
+      iex> conn(:post, "/") |> put_ajax_csrf_header() |> Map.get(:req_headers)
+      [{"x-csrf-token", "anything"}]
+  """
+  @spec put_ajax_csrf_header(Plug.Conn.t()) :: Plug.Conn.t()
+  def put_ajax_csrf_header(conn) do
+    Plug.Conn.put_req_header(conn, "x-csrf-token", "anything")
+  end
 end
