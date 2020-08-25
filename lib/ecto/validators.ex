@@ -183,12 +183,12 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
 
   @doc """
   Validate a searchable field. If the value of `field` is postfixed with '\\*',
-  a fuzzy search instead of a literal match is considered to be intended. In this case, the value
+  a fuzzy search instead of a equal_to match is considered to be intended. In this case, the value
   must be at least 4 characters long and must be (i)like safe (as per `validate_ilike_safe/2`),
   and is moved to `search_field`. The postfix '\\*' is stripped from the search string.
 
   The purpose is to pass the changes along to a `list`-query which supports searching by
-  `search_field`, and literal filtering by `field`.
+  `search_field`, and equal_to filtering by `field`.
   See `PhoenixApiToolkit.Ecto.DynamicFilters` for more info on dynamic filtering.
 
   ## Examples
