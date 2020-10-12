@@ -54,7 +54,7 @@ if Code.ensure_loaded?(:jose) do
         iex> conn = conn(:get, "/")
         iex> jwt = gen_jwt(@jwt_defaults)
         iex> result = conn |> put_jwt(jwt) |> Oauth2Plug.call(opts())
-        iex> result == conn |> put_jwt(jwt) |> assign(:jwt, result.assigns.jwt) |> assign(:jws, result.assigns.jws)
+        iex> result == conn |> put_jwt(jwt) |> assign(:jwt, result.assigns.jwt) |> assign(:jws, result.assigns.jws) |> assign(:raw_jwt, result.assigns.raw_jwt)
         true
 
         # requests that are noncompliant result in an Oauth2TokenVerificationError
@@ -100,6 +100,7 @@ if Code.ensure_loaded?(:jose) do
         conn
         |> Conn.assign(:jwt, jwt)
         |> Conn.assign(:jws, jws)
+        |> Conn.assign(:raw_jwt, raw_jwt)
       else
         error ->
           error |> inspect() |> Logger.error()
