@@ -207,7 +207,7 @@ defmodule PhoenixApiToolkit.GenericRequestValidator do
       iex> resource_schema() |> query_pagination(%{"limit" => 1_000_000}, nil)
       #Ecto.Changeset<action: nil, changes: %{limit: 1000000}, errors: [], data: %{}, valid?: true>
   """
-  @spec query_pagination(map() | Ecto.Changeset.t() | schema, map(), integer(), integer()) ::
+  @spec query_pagination(map() | Ecto.Changeset.t() | schema, map(), integer() | nil, integer()) ::
           Ecto.Changeset.t()
   def query_pagination(changeset, attrs, max_limit \\ 100, default_limit \\ 50) do
     changeset
