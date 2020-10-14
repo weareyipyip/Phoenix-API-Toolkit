@@ -1,7 +1,12 @@
 name: CI / Automated testing
 on:
   push:
-    branches: ["**"]
+    # run every branch except master
+    branches:
+      - "**"
+      - "!master"
+  # allow manual build triggering
+  workflow_dispatch:
 
 jobs:
   test:
@@ -13,32 +18,26 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - uses: actions/setup-elixir@v1.2.0
+      - uses: actions/setup-elixir@v1
         with:
           otp-version: 22.x
           elixir-version: ${{matrix.elixir}}
       - name: Cache deps
-        uses: actions/cache@v1
+        uses: actions/cache@v2
         with:
-          path: deps
-          key: deps-${{ matrix.elixir }}-${{ hashFiles('**/mix.lock') }}
+          path: |
+            deps
+            _build
+
+          key: cache-${{ matrix.elixir }}-${{ hashFiles('**/mix.lock') }}
           restore-keys: |
-            deps-${{ matrix.elixir }}-
-      - name: Cache build
-        uses: actions/cache@v1
-        with:
-          path: _build
-          key: build-${{ matrix.elixir }}-${{ hashFiles('**/mix.lock') }}
-          restore-keys: |
-            build-${{ matrix.elixir }}
+            cache-${{ matrix.elixir }}-
       - name: Display build environment
         run: printenv
       - name: Install dependencies
         run: mix do local.hex --force, local.rebar --force, deps.get
       - name: Check code formatting
         run: mix format --check-formatted
-      - name: Check that versions match in readme and mix.exs
-        run: mix run check_versions.exs
       - name: Compile code (warnings as errors)
         run: mix compile --warnings-as-errors
       - name: Run tests (with coverage)
