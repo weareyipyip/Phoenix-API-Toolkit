@@ -206,20 +206,40 @@ defmodule PhoenixApiToolkit.GenericRequestValidator do
       # no max limit is enforced if `max_limit == nil`
       iex> resource_schema() |> query_pagination(%{"limit" => 1_000_000}, nil)
       #Ecto.Changeset<action: nil, changes: %{limit: 1000000}, errors: [], data: %{}, valid?: true>
+
+      # default limit can be disabled
+      iex> resource_schema() |> query_pagination(%{}, nil, nil)
+      #Ecto.Changeset<action: nil, changes: %{}, errors: [], data: %{}, valid?: true>
   """
-  @spec query_pagination(map() | Ecto.Changeset.t() | schema, map(), integer() | nil, integer()) ::
-          Ecto.Changeset.t()
+  @spec query_pagination(
+          map() | Ecto.Changeset.t() | schema,
+          map(),
+          integer() | nil,
+          integer() | nil
+        ) :: Ecto.Changeset.t()
   def query_pagination(changeset, attrs, max_limit \\ 100, default_limit \\ 50) do
     changeset
     |> cast(attrs, [:limit, :offset])
-    |> put_change_if_unchanged(:limit, default_limit)
+    |> validate_default_limit(default_limit)
     |> validate_number(:limit, greater_than_or_equal_to: 0)
     |> validate_number(:offset, greater_than_or_equal_to: 0)
     |> validate_max_limit(max_limit)
   end
 
+  ###########
+  # Private #
+  ###########
+
   defp validate_max_limit(cs, nil), do: cs
 
-  defp validate_max_limit(cs, max_limit),
-    do: validate_number(cs, :limit, less_than_or_equal_to: max_limit)
+  defp validate_max_limit(cs, max_limit) do
+    cs
+    |> validate_required(:limit)
+    |> validate_number(:limit, less_than_or_equal_to: max_limit)
+  end
+
+  defp validate_default_limit(cs, nil), do: cs
+
+  defp validate_default_limit(cs, default_limit),
+    do: put_change_if_unchanged(cs, :limit, default_limit)
 end
