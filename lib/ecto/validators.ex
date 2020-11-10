@@ -25,21 +25,6 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
   @order_by_format ~r/^(asc|desc|asc_nulls_last|desc_nulls_last|asc_nulls_first|desc_nulls_first):(\w{1,20})$/
 
   @doc """
-  Returns `{:ok, changeset.changes}` for a valid changeset and `{:error, changeset}` for an invalid changeset.
-
-  ## Examples
-
-      iex> %Ecto.Changeset{valid?: true} |> to_tuple()
-      {:ok, %{}}
-
-      iex> %Ecto.Changeset{valid?: false} |> to_tuple()
-      {:error, %Ecto.Changeset{valid?: false}}
-  """
-  @spec to_tuple(Changeset.t()) :: {:ok, map()} | {:error, Changeset.t()}
-  def to_tuple(%{valid?: true} = changeset), do: {:ok, changeset.changes}
-  def to_tuple(%{valid?: false} = changeset), do: {:error, changeset}
-
-  @doc """
   If the changeset does not contain a change for `field` - even if the field already
   has a value in the changeset data - set it to `change`. Useful for setting default changes.
 

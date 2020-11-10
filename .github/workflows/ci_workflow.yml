@@ -14,10 +14,9 @@ jobs:
     name: Elixir ${{matrix.elixir}}
     strategy:
       matrix:
-        elixir: [1.7.x, 1.8.x, 1.9.x, 1.10.x]
+        elixir: [1.7.x, 1.8.x, 1.9.x, 1.10.x, 1.11.x]
     env:
       MIX_ENV: test
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -25,13 +24,12 @@ jobs:
         with:
           otp-version: 22.x
           elixir-version: ${{matrix.elixir}}
-      - name: Cache deps
+      - name: Cache
         uses: actions/cache@v2
         with:
           path: |
             deps
             _build
-
           key: cache-${{ matrix.elixir }}-${{ hashFiles('**/mix.lock') }}
           restore-keys: |
             cache-${{ matrix.elixir }}-

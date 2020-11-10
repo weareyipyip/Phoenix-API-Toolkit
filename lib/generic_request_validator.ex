@@ -29,7 +29,6 @@ defmodule PhoenixApiToolkit.GenericRequestValidator do
       |> query_order_by(attrs)
       |> query_pagination(attrs)
       |> cast(attrs, @entity_fields)
-      |> to_tuple()
     end
   end
 
@@ -41,7 +40,7 @@ defmodule PhoenixApiToolkit.GenericRequestValidator do
     alias PhoenixApiToolkit.GenericRequestValidator, as: GenReqVal
 
     def index(conn, _params) do
-      with {:ok, query_params} <- ReqVal.index_query(conn.query_params),
+      with %{valid?: true, changes: query_params} <- ReqVal.index_query(conn.query_params),
            users <- MyUsersContext.list(query_params) do
         conn |> send_resp(200, Jason.encode!(users))
       else
@@ -50,7 +49,7 @@ defmodule PhoenixApiToolkit.GenericRequestValidator do
     end
 
     def show(conn, _params) do
-      with {:ok, %{id: id}} <- GenReqVal.path_param(conn.path_params),
+      with {valid?: true, changes: %{id: id}} <- GenReqVal.path_param(conn.path_params),
            user when not is_nil(user) <- MyUsersContext.get(id) do
         conn |> send_resp(200, Jason.encode!(user))
       else
@@ -140,33 +139,29 @@ defmodule PhoenixApiToolkit.GenericRequestValidator do
   @doc """
   Validates the path parameter of a generic GET request of a RESTful resource.
 
-  Returns an `:ok` or `:error` tuple.
-
   ## Examples
 
       # "id" is a required parameter
-      iex> path_param(%{}) |> elem(0)
-      :error
+      iex> path_param(%{}) |> Map.get(:valid?)
+      false
 
       # "id" must be an integer
-      iex> path_param(%{"id" => "boom"}) |> elem(0)
-      :error
+      iex> path_param(%{"id" => "boom"}) |> Map.get(:valid?)
+      false
 
       # "id" must be greater than 0
-      iex> path_param(%{"id" => 0}) |> elem(0)
-      :error
+      iex> path_param(%{"id" => 0}) |> Map.get(:valid?)
+      false
 
-      iex> path_param(%{"id" => 1}) |> elem(0)
-      :ok
-
+      iex> path_param(%{"id" => 1}) |> Map.get(:valid?)
+      true
   """
-  @spec path_param(map()) :: {:error, Ecto.Changeset.t()} | {:ok, map()}
+  @spec path_param(map()) :: Ecto.Changeset.t()
   def path_param(attrs) do
     {%{}, %{id: :integer}}
     |> cast(attrs, [:id])
     |> validate_required([:id])
     |> validate_number(:id, greater_than: 0)
-    |> to_tuple()
   end
 
   @doc """

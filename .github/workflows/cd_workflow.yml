@@ -27,7 +27,7 @@ jobs:
       - uses: actions/setup-elixir@v1
         with:
           otp-version: 22.x
-          elixir-version: 1.10.x
+          elixir-version: 1.11.x
       - name: Install dependencies
         run: mix do local.hex --force, local.rebar --force, deps.get
       - name: Check code formatting
