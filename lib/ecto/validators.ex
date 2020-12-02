@@ -25,21 +25,6 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
   @order_by_format ~r/^(asc|desc|asc_nulls_last|desc_nulls_last|asc_nulls_first|desc_nulls_first):(\w{1,20})$/
 
   @doc """
-  Returns `{:ok, changeset.changes}` for a valid changeset and `{:error, changeset}` for an invalid changeset.
-
-  ## Examples
-
-      iex> %Ecto.Changeset{valid?: true} |> to_tuple()
-      {:ok, %{}}
-
-      iex> %Ecto.Changeset{valid?: false} |> to_tuple()
-      {:error, %Ecto.Changeset{valid?: false}}
-  """
-  @spec to_tuple(Changeset.t()) :: {:ok, map()} | {:error, Changeset.t()}
-  def to_tuple(%{valid?: true} = changeset), do: {:ok, changeset.changes}
-  def to_tuple(%{valid?: false} = changeset), do: {:error, changeset}
-
-  @doc """
   If the changeset does not contain a change for `field` - even if the field already
   has a value in the changeset data - set it to `change`. Useful for setting default changes.
 
@@ -124,7 +109,7 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
       @orderables ~w(first_name last_name) |> MapSet.new()
 
       iex> changeset(%{order_by: "asc:last_name"}) |> validate_order_by(@orderables)
-      #Ecto.Changeset<action: nil, changes: %{order_by: {:last_name, :asc}}, errors: [], data: %{}, valid?: true>
+      #Ecto.Changeset<action: nil, changes: %{order_by: [asc: :last_name]}, errors: [], data: %{}, valid?: true>
 
       iex> changeset(%{order_by: "invalid"}) |> validate_order_by(@orderables)
       #Ecto.Changeset<action: nil, changes: %{order_by: "invalid"}, errors: [order_by: {"format is asc|desc:field", []}], data: %{}, valid?: false>
@@ -141,7 +126,7 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
          {:captures, [dir, field]} <-
            {:captures, Regex.run(@order_by_format, order_by, capture: :all_but_first)},
          {:supported, true, _field} <- {:supported, field in orderable_fields, field} do
-      put_change(changeset, :order_by, {String.to_atom(field), String.to_atom(dir)})
+      put_change(changeset, :order_by, [{String.to_atom(dir), String.to_atom(field)}])
     else
       {:captures, nil} -> add_error(changeset, :order_by, "format is asc|desc:field")
       {:supported, false, field} -> add_error(changeset, :order_by, "unknown field " <> field)
@@ -183,12 +168,12 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
 
   @doc """
   Validate a searchable field. If the value of `field` is postfixed with '\\*',
-  a fuzzy search instead of a literal match is considered to be intended. In this case, the value
+  a fuzzy search instead of a equal_to match is considered to be intended. In this case, the value
   must be at least 4 characters long and must be (i)like safe (as per `validate_ilike_safe/2`),
   and is moved to `search_field`. The postfix '\\*' is stripped from the search string.
 
   The purpose is to pass the changes along to a `list`-query which supports searching by
-  `search_field`, and literal filtering by `field`.
+  `search_field`, and equal_to filtering by `field`.
   See `PhoenixApiToolkit.Ecto.DynamicFilters` for more info on dynamic filtering.
 
   ## Examples

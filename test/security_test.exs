@@ -4,8 +4,7 @@ defmodule PhoenixApiToolkit.SecurityTest do
   alias PhoenixApiToolkit.Security.{HmacVerificationError, Oauth2TokenVerificationError}
 
   test "the def exception things" do
-    for error <- [HmacVerificationError, Oauth2TokenVerificationError] do
-      assert %error{} = error.exception([])
-    end
+    assert %HmacVerificationError{} = HmacVerificationError.exception([])
+    assert %Oauth2TokenVerificationError{} = Oauth2TokenVerificationError.exception([])
   end
 end
