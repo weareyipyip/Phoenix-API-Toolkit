@@ -24,7 +24,7 @@ jobs:
         with:
           source: tag
           file_path: README.md
-      - uses: actions/setup-elixir@v1
+      - uses: erlef/setup-elixir@v1
         with:
           otp-version: 22.x
           elixir-version: 1.11.x
