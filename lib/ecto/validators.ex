@@ -49,11 +49,11 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
   ## Examples
   For the implementation of `changeset/1`, see `#{__MODULE__}`.
 
-    iex> changeset() |> default_change(:first_name, "Peter")
-    #Ecto.Changeset<action: nil, changes: %{first_name: "Peter"}, errors: [], data: %{}, valid?: true>
+      iex> changeset() |> default_change(:first_name, "Peter")
+      #Ecto.Changeset<action: nil, changes: %{first_name: "Peter"}, errors: [], data: %{}, valid?: true>
 
-    iex> changeset(%{first_name: "Jason"}) |> default_change(:first_name, "Peter")
-    #Ecto.Changeset<action: nil, changes: %{first_name: "Jason"}, errors: [], data: %{}, valid?: true>
+      iex> changeset(%{first_name: "Jason"}) |> default_change(:first_name, "Peter")
+      #Ecto.Changeset<action: nil, changes: %{first_name: "Jason"}, errors: [], data: %{}, valid?: true>
   """
   @spec default_change(Ecto.Changeset.t(), atom, any) :: Ecto.Changeset.t()
   def default_change(changeset, field, value)
