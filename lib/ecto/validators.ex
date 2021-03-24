@@ -38,8 +38,26 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
       #Ecto.Changeset<action: nil, changes: %{first_name: "Jason"}, errors: [], data: %{}, valid?: true>
   """
   @spec put_change_if_unchanged(Changeset.t(), atom(), any()) :: Changeset.t()
-  def put_change_if_unchanged(changeset, field, change),
-    do: put_change(changeset, field, get_change(changeset, field, change))
+  @deprecated "renamed to default_change/3"
+  def put_change_if_unchanged(changeset, field, value)
+  def put_change_if_unchanged(cs, fld, val), do: default_change(cs, fld, val)
+
+  @doc """
+  If the changeset does not contain a change for `field` - even if the field already
+  has a value in the changeset data - set it to `change`. Useful for setting default changes.
+
+  ## Examples
+  For the implementation of `changeset/1`, see `#{__MODULE__}`.
+
+    iex> changeset() |> default_change(:first_name, "Peter")
+    #Ecto.Changeset<action: nil, changes: %{first_name: "Peter"}, errors: [], data: %{}, valid?: true>
+
+    iex> changeset(%{first_name: "Jason"}) |> default_change(:first_name, "Peter")
+    #Ecto.Changeset<action: nil, changes: %{first_name: "Jason"}, errors: [], data: %{}, valid?: true>
+  """
+  @spec default_change(Ecto.Changeset.t(), atom, any) :: Ecto.Changeset.t()
+  def default_change(changeset, field, value)
+  def default_change(cs, fld, val), do: put_change(cs, fld, get_change(cs, fld, val))
 
   @doc """
   Validates that `field` is a suitable parameter for an (i)like query.

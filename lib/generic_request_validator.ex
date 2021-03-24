@@ -236,5 +236,5 @@ defmodule PhoenixApiToolkit.GenericRequestValidator do
   defp validate_default_limit(cs, nil), do: cs
 
   defp validate_default_limit(cs, default_limit),
-    do: put_change_if_unchanged(cs, :limit, default_limit)
+    do: default_change(cs, :limit, default_limit)
 end
