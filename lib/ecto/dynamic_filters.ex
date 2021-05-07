@@ -58,7 +58,10 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
         limit: true,
         offset: true,
         order_by: true,
-        order_by_aliases: [role_name: {:role, :name}],
+        order_by_aliases: [
+          role_name: {:role, :name},
+          username_last_letter: &__MODULE__.order_by_username_last_letter/2
+        ],
         equal_to: [:id, :username, :address, :balance, role_name: {:role, :name}],
         equal_to_any: [:address],
         string_starts_with: [username_prefix: {:user, :username}],
@@ -82,6 +85,13 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
       \"\"\"
       def by_group_name(query, group_name) do
         where(query, [user: user], user.group_name == ^group_name)
+      end
+
+      @doc \"\"\"
+      Custom order_by handler
+      \"\"\"
+      def order_by_username_last_letter(query, direction) do
+        order_by(query, [user: user], [{^direction, fragment("right(?, 1)", user.username)}])
       end
 
       @doc \"\"\"
@@ -138,6 +148,10 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
       # order_by can use aliases defined in `order_by_aliases`, without breaking dynamic joining
       iex> list_with_standard_filters(%{order_by: [asc: :role_name]})
       #Ecto.Query<from u0 in "users", as: :user, left_join: r1 in "roles", as: :role, on: true, order_by: [asc: r1.name]>
+
+      # order_by can use function aliases
+      iex> list_with_standard_filters(%{order_by: [desc: :username_last_letter]})
+      #Ecto.Query<from u0 in \"users\", as: :user, order_by: [desc: fragment(\"right(?, 1)\", u0.username)]>
 
       # complex custom filters can be combined with the standard filters
       iex> list_with_standard_filters(%{group_name: "admins", balance_gte: 50.00})
@@ -290,7 +304,8 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
   >
   > All fields present in the query on any named binding are supported.
   > Additionally, aliases for fields in non-default bindings can be defined in `order_by_aliases`. The alias can then be used in `order_by` filters. The following aliases are supported:
-  > * `role_name` (actual field is `role.name)`
+  > * `role_name` (actual field is `role.name`)
+  > * `username_last_letter` (opague)
   >
   > ## Limit filter
   >
@@ -343,7 +358,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
           limit: boolean(),
           offset: boolean(),
           order_by: boolean(),
-          order_by_aliases: [filter_definition()],
+          order_by_aliases: [filter_definition() | (Query.t(), atom -> Query.t())],
           equal_to: [filter_definition()],
           equal_to_any: [filter_definition()],
           smaller_than: [filter_definition()],
@@ -394,7 +409,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
   - `limit`: enables limit filter
   - `offset`: enables offset filter
   - `order_by`: enables order_by filter
-  - `order_by_aliases`: set an alias for a non-default-binding-field, e.g. `{:role_name, {:role, :name}}` which enables `order_by: [desc: :role_name]`
+  - `order_by_aliases`: set an alias for a non-default-binding-field, e.g. `{:role_name, {:role, :name}}` which enables `order_by: [desc: :role_name]` OR provide an ordering function that takes the query and direction as arguments
   - `equal_to`: field must be equal to filter.
   - `equal_to_any`: field must be equal to any value of filter, e.g. `user.id in [1, 2, 3]`. Filter names can be the same as `equal_to` filters.
   - `smaller_than`: field must be smaller than filter value, e.g. `user.score < value`
@@ -698,7 +713,12 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
 
           Enum.reduce(val, query, fn elem, query ->
             {dir, bnd, fld} = Internal.parse_order_by(elem, unquote(def_bnd), unquote(aliases))
-            query |> resolve_binding.(bnd) |> order_by([{^bnd, bd}], [{^dir, field(bd, ^fld)}])
+
+            if is_function(fld) do
+              query |> resolve_binding.(bnd) |> fld.(dir)
+            else
+              query |> resolve_binding.(bnd) |> order_by([{^bnd, bd}], [{^dir, field(bd, ^fld)}])
+            end
           end)
         end
       )
@@ -736,7 +756,11 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
   defp maybe_get_filters(nil, _type), do: []
   defp maybe_get_filters(enum, type), do: enum[type] || []
 
+  defp parse_filter({filter_name, {binding, func}}) when is_function(func),
+    do: {filter_name, "#{binding}.<opague>"}
+
   defp parse_filter({filter_name, {binding, field}}), do: {filter_name, "#{binding}.#{field}"}
+  defp parse_filter(func) when is_function(func), do: "opague"
   defp parse_filter(filter), do: filter
 
   defp key_type_docs(filters) do
@@ -906,10 +930,17 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
     Note that the value of `order_by` filters must consist of atoms, even with `string_keys` enabled.
 
     All fields present in the query on any named binding are supported.
-    Additionally, aliases for fields in non-default bindings can be defined in `order_by_aliases`. The alias can then be used in `order_by` filters. The following aliases are supported:
-    #{aliases |> to_list()}
+    Additionally, aliases for fields in non-default bindings can be defined in `order_by_aliases`. The alias can then be used in `order_by` filters.
+    """ <>
+      if aliases != [] do
+        """
+        The following aliases are supported:
+        #{aliases |> to_list()}
 
-    """
+        """
+      else
+        "\n"
+      end
   end
 
   defp order_by_docs(_, _), do: ""
@@ -972,7 +1003,8 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
 
   defp to_list(list) do
     Enum.reduce(list, "", fn
-      {filter_name, field}, acc -> "#{acc}* `#{filter_name}` (actual field is `#{field})`\n"
+      {filter_name, func}, acc when is_function(func) -> "#{acc}* `#{filter_name}` (opague)\n"
+      {filter_name, field}, acc -> "#{acc}* `#{filter_name}` (actual field is `#{field}`)\n"
       filter, acc -> "#{acc}* `#{filter}`\n"
     end)
     |> String.trim_trailing("\n")
