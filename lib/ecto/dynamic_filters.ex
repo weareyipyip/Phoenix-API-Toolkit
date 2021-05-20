@@ -169,7 +169,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
 
       # filtering on array-type fields
       iex> list_with_standard_filters(%{roles: "admin"})
-      #Ecto.Query<from u0 in "users", as: :user, where: ^"admin" in u0.roles>
+      #Ecto.Query<from u0 in "users", as: :user, where: fragment("? && ?", u0.roles, ^["admin"])>
       iex> list_with_standard_filters(%{roles: ["admin", "superadmin"], all_roles: ["creator", "user"]})
       #Ecto.Query<from u0 in "users", as: :user, where: fragment("? @> ?", u0.roles, ^["creator", "user"]), where: fragment("? && ?", u0.roles, ^["admin", "superadmin"])>
 
@@ -543,7 +543,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
           quote do
             query
             |> unquote(res_binding).(unquote(bnd))
-            |> where([{^unquote(bnd), bd}], ^val in field(bd, unquote(fld)))
+            |> where([{^unquote(bnd), bd}], fragment("? && ?", field(bd, unquote(fld)), ^[val]))
           end
         )
       end)
