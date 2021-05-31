@@ -115,10 +115,10 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
 
   @doc """
   Validate the value of an `order_by` query parameter. The format of the parameter
-  is expected to match `#{@order_by_format |> inspect()}`. The supported fields should be
-  passed as a list or `MapSet` (which performs better) to `orderables`.
+  is expected to match `#{@order_by_format |> inspect()}` (may be repeated, comma-separated).
+  The supported fields should be passed as a list or `MapSet` (which performs better) to `orderables`.
 
-  If the change is valid, the original change is replaced with a tuple of
+  If the change is valid, the original change is replaced with a keyword list of
   `{:field, :direction}`, which is supported by `PhoenixApiToolkit.Ecto.DynamicFilters.standard_filters/4`.
 
   ## Examples
@@ -130,24 +130,33 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
       #Ecto.Changeset<action: nil, changes: %{order_by: [asc: :last_name]}, errors: [], data: %{}, valid?: true>
 
       iex> changeset(%{order_by: "invalid"}) |> validate_order_by(@orderables)
-      #Ecto.Changeset<action: nil, changes: %{order_by: "invalid"}, errors: [order_by: {"format is asc|desc:field", []}], data: %{}, valid?: false>
+      #Ecto.Changeset<action: nil, changes: %{order_by: []}, errors: [order_by: {"format is asc|desc:field", []}], data: %{}, valid?: false>
 
       iex> changeset(%{order_by: "asc:eye_count"}) |> validate_order_by(@orderables)
-      #Ecto.Changeset<action: nil, changes: %{order_by: "asc:eye_count"}, errors: [order_by: {"unknown field eye_count", []}], data: %{}, valid?: false>
+      #Ecto.Changeset<action: nil, changes: %{order_by: []}, errors: [order_by: {"unknown field eye_count", []}], data: %{}, valid?: false>
 
       iex> changeset(%{order_by: nil}) |> validate_order_by(@orderables)
       #Ecto.Changeset<action: nil, changes: %{}, errors: [], data: %{}, valid?: true>
+
+      iex> changeset(%{order_by: "asc:last_name,desc_nulls_last:first_name"}) |> validate_order_by(@orderables)
+      #Ecto.Changeset<action: nil, changes: %{order_by: [asc: :last_name, desc_nulls_last: :first_name]}, errors: [], data: %{}, valid?: true>
   """
   @spec validate_order_by(Changeset.t(), Enum.t()) :: Changeset.t()
   def validate_order_by(changeset, orderable_fields) do
-    with order_by when not is_nil(order_by) <- get_change(changeset, :order_by),
-         {:captures, [dir, field]} <-
-           {:captures, Regex.run(@order_by_format, order_by, capture: :all_but_first)},
-         {:supported, true, _field} <- {:supported, field in orderable_fields, field} do
-      put_change(changeset, :order_by, [{String.to_atom(dir), String.to_atom(field)}])
+    with order_by when is_binary(order_by) <- get_change(changeset, :order_by) do
+      order_by
+      |> String.split(",", trim: true)
+      |> Enum.reduce(put_change(changeset, :order_by, []), fn string, cs ->
+        with [dir, field] <- Regex.run(@order_by_format, string, capture: :all_but_first),
+             {true, field} <- {field in orderable_fields, field} do
+          update_change(cs, :order_by, &[{String.to_atom(dir), String.to_atom(field)} | &1])
+        else
+          nil -> add_error(cs, :order_by, "format is asc|desc:field")
+          {false, field} -> add_error(cs, :order_by, "unknown field " <> field)
+        end
+      end)
+      |> update_change(:order_by, &Enum.reverse/1)
     else
-      {:captures, nil} -> add_error(changeset, :order_by, "format is asc|desc:field")
-      {:supported, false, field} -> add_error(changeset, :order_by, "unknown field " <> field)
       _ -> delete_change(changeset, :order_by)
     end
   end
@@ -172,7 +181,7 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
       iex> changeset(%{first_name: "Pan"}) |> move_change(:first_name, :last_name, & String.upcase(&1))
       #Ecto.Changeset<action: nil, changes: %{last_name: "PAN"}, errors: [], data: %{}, valid?: true>
   """
-  @spec move_change(Changeset.t(), atom(), atom()) :: Changeset.t()
+  @spec move_change(Changeset.t(), atom(), atom(), (any -> any)) :: Changeset.t()
   def move_change(%{changes: changes} = changeset, field, new_field, value_mapper \\ & &1) do
     case Map.get(changes, field) do
       nil ->

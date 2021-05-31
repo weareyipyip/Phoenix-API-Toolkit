@@ -3,6 +3,7 @@ defmodule PhoenixApiToolkit.TestHelpers do
   Various helper functions for writing tests.
   """
   alias Plug.Conn
+  alias PhoenixApiToolkit.Internal
   require Logger
 
   if Code.ensure_loaded?(:jose) do
@@ -191,7 +192,7 @@ defmodule PhoenixApiToolkit.TestHelpers do
     conn
     |> Conn.put_req_header(
       "authorization",
-      :crypto.hmac(:sha256, secret, body) |> Base.encode64()
+      Internal.hmac(:sha256, secret, body) |> Base.encode64()
     )
   end
 
