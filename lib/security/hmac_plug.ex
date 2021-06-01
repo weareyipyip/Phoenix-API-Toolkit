@@ -1,7 +1,7 @@
 defmodule PhoenixApiToolkit.Security.HmacPlug do
   @moduledoc """
   Checks HMAC authentication. Expects a HMAC-<some_algorithm> of the request body to be present in the
-  "authorization" header. Supported algorithms are those supported by `:crypto.hmac/3`.
+  "authorization" header. Supported algorithms are those supported by `:crypto.mac/4`.
   Relies on `PhoenixApiToolkit.CacheBodyReader` being called by `Plug.Parsers`.
 
   To be considered a valid request by the plug, a request has to meet the following criteria:
@@ -71,6 +71,7 @@ defmodule PhoenixApiToolkit.Security.HmacPlug do
   import Plug.Conn
   alias PhoenixApiToolkit.Security.HmacVerificationError
   alias PhoenixApiToolkit.CacheBodyReader
+  alias PhoenixApiToolkit.Internal
   require Logger
 
   @doc false
@@ -94,7 +95,7 @@ defmodule PhoenixApiToolkit.Security.HmacPlug do
 
     with hmac <- parse_auth_header(conn),
          body = CacheBodyReader.get_raw_request_body(conn) || "",
-         message_hmac = :crypto.hmac(hash_algorithm, hmac_secret, body) |> Base.encode64(),
+         message_hmac = Internal.hmac(hash_algorithm, hmac_secret, body) |> Base.encode64(),
          {:hmac_matches, true} <- {:hmac_matches, hmac == message_hmac},
          :ok <- verify_method(conn),
          :ok <- verify_path(conn),

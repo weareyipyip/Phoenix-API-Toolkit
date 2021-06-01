@@ -16,4 +16,14 @@ defmodule PhoenixApiToolkit.Internal do
   def parse_order_by(fld, def_bnd, aliases) do
     parse_order_by({:asc, fld}, def_bnd, aliases)
   end
+
+  # OTP 22 introduced a new crypto API, and the old one is hard deprecated in OTP 24
+  # we differentiate between the two at compile time
+  if :erlang.system_info(:otp_release) |> to_string() |> String.to_integer() < 22 do
+    @doc false
+    def hmac(alg, secret, body), do: :crypto.hmac(alg, secret, body)
+  else
+    @doc false
+    def hmac(alg, secret, body), do: :crypto.mac(:hmac, alg, secret, body)
+  end
 end
