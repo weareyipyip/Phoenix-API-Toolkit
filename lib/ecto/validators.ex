@@ -203,6 +203,8 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
   `search_field`, and equal_to filtering by `field`.
   See `PhoenixApiToolkit.Ecto.DynamicFilters` for more info on dynamic filtering.
 
+  The minimum length for a search string can be overridden with option `:min_length`.
+
   ## Examples
   For the implementation of `changeset/1`, see `#{__MODULE__}`.
 
@@ -218,18 +220,22 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
       iex> changeset(%{last_name: "Smi*"}) |> validate_searchable(:last_name, :last_name_prefix)
       #Ecto.Changeset<action: nil, changes: %{last_name: "Smi"}, errors: [last_name: {"should be at least %{count} character(s)", [count: 4, validation: :length, kind: :min, type: :string]}], data: %{}, valid?: false>
 
+      # the min_length value can be overridden
+      iex> changeset(%{last_name: "Smi*"}) |> validate_searchable(:last_name, :last_name_prefix, min_length: 5)
+      #Ecto.Changeset<action: nil, changes: %{last_name: "Smi"}, errors: [last_name: {"should be at least %{count} character(s)", [count: 5, validation: :length, kind: :min, type: :string]}], data: %{}, valid?: false>
+
       # additionally, search parameters must be ilike safe, as per validate_ilike_safe/2
       iex> changeset(%{last_name: "Sm_it*"}) |> validate_searchable(:last_name, :last_name_prefix)
       #Ecto.Changeset<action: nil, changes: %{last_name: "Sm_it"}, errors: [last_name: {"may not contain _ % or \\\\", [validation: :format]}], data: %{}, valid?: false>
   """
-  @spec validate_searchable(Changeset.t(), atom(), atom()) :: Changeset.t()
-  def validate_searchable(changeset, field, search_field) do
+  @spec validate_searchable(Changeset.t(), atom(), atom(), keyword) :: Changeset.t()
+  def validate_searchable(changeset, field, search_field, opts \\ []) do
     with value when not is_nil(value) <- get_change(changeset, field),
          true <- String.ends_with?(value, "*") do
       changeset
       |> put_change(field, String.trim_trailing(value, "*"))
       # to prevent useless, expensive lookups
-      |> validate_length(field, min: 4)
+      |> validate_length(field, min: opts[:min_length] || 4)
       |> validate_ilike_safe(field)
       |> map_if_valid(&move_change(&1, field, search_field))
     else

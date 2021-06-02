@@ -266,7 +266,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
   > The array-type field's value must contain the filter's value (set membership).
   > The equivalent Ecto code is
   > ```
-  > where(query, [binding: bd], ^filter_value in bd.field)
+  > where(query, [binding: bd], fragment("? && ?", bd.field, ^[val]))
   > ```
   > The following filter names are supported:
   > * `roles`
@@ -834,7 +834,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
     The array-type field's value must contain the filter's value (set membership).
     The equivalent Ecto code is
     ```
-    where(query, [binding: bd], ^filter_value in bd.field)
+    where(query, [binding: bd], fragment("? && ?", bd.field, ^[val]))
     ```
     The following filter names are supported:
     #{list_contains |> to_list()}
