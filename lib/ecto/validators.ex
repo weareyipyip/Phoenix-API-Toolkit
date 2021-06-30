@@ -331,4 +331,25 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
   def map_if_valid(changeset, then_do, else_do \\ & &1)
   def map_if_valid(%{valid?: true} = cs, then_do, _else_do), do: then_do.(cs)
   def map_if_valid(cs, _then_do, else_do), do: else_do.(cs)
+
+  @doc """
+  Apply `function` to multiple fields of the changeset.
+  Convenience wrapper for validators that don't support multiple fields.
+
+  ## Examples / doctests
+  For the implementation of `changeset/1`, see `#{__MODULE__}`.
+
+      iex> changeset(%{first_name: "Luke", last_name: "Skywalker"})
+      ...> |> multifield_apply([:first_name, :last_name], &validate_length(&1, &2, max: 3))
+      ...> |> Map.take([:valid?, :errors])
+      %{valid?: false, errors: [
+        {:last_name, {"should be at most %{count} character(s)", [count: 3, validation: :length, kind: :max, type: :string]}},
+        {:first_name, {"should be at most %{count} character(s)", [count: 3, validation: :length, kind: :max, type: :string]}}
+      ]}
+  """
+  @spec multifield_apply(Changeset.t(), [atom], (Changeset.t(), atom -> Changeset.t())) ::
+          Changeset.t()
+  def multifield_apply(changeset, fields, function) do
+    Enum.reduce(fields, changeset, &function.(&2, &1))
+  end
 end
