@@ -4,6 +4,7 @@ defmodule PhoenixApiToolkit.Ecto.ValidatorsTest do
   import PhoenixApiToolkit.Ecto.Validators
   import Ecto.Changeset
 
+  @signatures %{("89504E470D0A1A0A" |> Base.decode16!()) => "image/png"}
   @pdf_signature "255044462D" |> Base.decode16!()
   @png_signature "89504E470D0A1A0A" |> Base.decode16!()
   @png_file "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
@@ -13,7 +14,8 @@ defmodule PhoenixApiToolkit.Ecto.ValidatorsTest do
     last_name: :string,
     last_name_prefix: :string,
     order_by: :string,
-    file: :string
+    file: :string,
+    mime_type: :string
   }
   @orderables ~w(first_name last_name) |> MapSet.new()
 
