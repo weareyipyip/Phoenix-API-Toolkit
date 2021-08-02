@@ -11,7 +11,8 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
         last_name: :string,
         last_name_prefix: :string,
         order_by: :string,
-        file: :string
+        file: :string,
+        mime_type: :string
       }
 
       def changeset(changes \\\\ %{}) do
@@ -286,7 +287,7 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
     with change when not is_nil(change) <- get_change(changeset, field),
          {:base64, {:ok, binary}} <- {:base64, Base.decode64(change)},
          {:valid, true} <-
-           {:valid, Enum.find_value(file_signatures, &file_signature_match?(binary, &1))} do
+           {:valid, Enum.find_value(file_signatures, &file_signature_matches?(binary, &1))} do
       put_change(changeset, field, binary)
     else
       nil -> changeset
@@ -296,13 +297,36 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
     end
   end
 
-  defp file_signature_match?(binary, file_signature) do
-    byte_count = byte_size(file_signature)
+  @doc """
+  Like `validate_upload/3`, but sets the mime type to `mime_field`. Parameter
+  `file_sig_mime_map` should be a map of file type signatures to mime types.
 
-    with <<head::binary-size(byte_count), _rest::binary>> <- binary do
-      head == file_signature
+  ## Examples
+  For the implementation of `changeset/1`, see `#{__MODULE__}`.
+
+      @signatures %{("89504E470D0A1A0A" |> Base.decode16!()) => "image/png"}
+      @png_file "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+      @gif_file "R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
+
+      iex> cs = changeset(%{file: @png_file}) |> validate_upload(:file, :mime_type, @signatures)
+      iex> {cs.valid?, cs.changes.file, cs.changes.mime_type}
+      {true, @png_file |> Base.decode64!(), "image/png"}
+
+      iex> cs = changeset(%{file: @gif_file}) |> validate_upload(:file, :mime_type, @signatures)
+      iex> {cs.valid?, cs.errors, cs.changes.file, cs.changes[:mime_type]}
+      {false, [file: {"invalid file type", []}], @gif_file, nil}
+  """
+  @spec validate_upload(Ecto.Changeset.t(), atom, atom, map) :: Ecto.Changeset.t()
+  def validate_upload(changeset, field, mime_field, file_sig_mime_map) do
+    with base64_data when not is_nil(base64_data) <- get_change(changeset, field),
+         {:base64, {:ok, decoded}} <- {:base64, Base.decode64(base64_data)},
+         %{valid?: true} = changeset <-
+           validate_file_signature(changeset, field, mime_field, file_sig_mime_map, decoded) do
+      put_change(changeset, field, decoded)
     else
-      other -> other
+      nil -> changeset
+      {:base64, _} -> add_error(changeset, field, "invalid base64 encoding")
+      %Ecto.Changeset{} = changeset -> changeset
     end
   end
 
@@ -351,5 +375,36 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
           Changeset.t()
   def multifield_apply(changeset, fields, function) do
     Enum.reduce(fields, changeset, &function.(&2, &1))
+  end
+
+  ###########
+  # Private #
+  ###########
+
+  defp file_signature_matches?(binary, file_signature) do
+    byte_count = byte_size(file_signature)
+
+    with <<head::binary-size(byte_count), _rest::binary>> <- binary do
+      head == file_signature
+    else
+      other -> other
+    end
+  end
+
+  #
+  # validate that the uploaded file starts with known magic bytes
+  # field is used for errors  # sets :image_mime to mime type if recognized
+  #
+  defp validate_file_signature(changeset, field, mime_field, allowed_mimes, data) do
+    Enum.find_value(
+      allowed_mimes,
+      add_error(changeset, field, "invalid file type"),
+      fn {signature, mime_type} ->
+        case file_signature_matches?(data, signature) do
+          true -> put_change(changeset, mime_field, mime_type)
+          _ -> false
+        end
+      end
+    )
   end
 end
