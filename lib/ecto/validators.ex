@@ -257,6 +257,7 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
       @png_signature "89504E470D0A1A0A" |> Base.decode16!()
       @png_file "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
       @gif_file "R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
+      @txt_file "some text" |> Base.encode64()
 
       # if the signature checks out, the uploaded file is decoded and the changeset valid
       iex> cs = changeset(%{file: @png_file}) |> validate_upload(:file, @png_signature)
@@ -277,6 +278,11 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
       iex> cs = changeset(%{file: "a"}) |> validate_upload(:file, @pdf_signature)
       iex> {cs.valid?, cs.errors}
       {false, [file: {"invalid base64 encoding", []}]}
+
+      # it is possible to provide a custom validator function (which should return `true` if valid)
+      iex> cs = changeset(%{file: @txt_file}) |> validate_upload(:file, &String.starts_with?(&1, "some"))
+      iex> cs.valid?
+      true
   """
   @spec validate_upload(Changeset.t(), atom, binary | [binary]) :: Changeset.t()
   def validate_upload(changeset, field, file_signature)
@@ -304,13 +310,23 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
   ## Examples
   For the implementation of `changeset/1`, see `#{__MODULE__}`.
 
-      @signatures %{("89504E470D0A1A0A" |> Base.decode16!()) => "image/png"}
+      def is_valid_text(binary), do: String.starts_with?(binary, "some")
+
+      @signatures %{
+        ("89504E470D0A1A0A" |> Base.decode16!()) => "image/png",
+        &__MODULE__.is_valid_text/1 => "text/plain"
+      }
       @png_file "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
       @gif_file "R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
+      @txt_file "some text" |> Base.encode64()
 
       iex> cs = changeset(%{file: @png_file}) |> validate_upload(:file, :mime_type, @signatures)
       iex> {cs.valid?, cs.changes.file, cs.changes.mime_type}
       {true, @png_file |> Base.decode64!(), "image/png"}
+
+      iex> cs = changeset(%{file: @txt_file}) |> validate_upload(:file, :mime_type, @signatures)
+      iex> {cs.valid?, cs.changes.file, cs.changes.mime_type}
+      {true, @txt_file |> Base.decode64!(), "text/plain"}
 
       iex> cs = changeset(%{file: @gif_file}) |> validate_upload(:file, :mime_type, @signatures)
       iex> {cs.valid?, cs.errors, cs.changes.file, cs.changes[:mime_type]}
@@ -380,6 +396,9 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
   ###########
   # Private #
   ###########
+
+  defp file_signature_matches?(binary, file_signature) when is_function(file_signature),
+    do: file_signature.(binary)
 
   defp file_signature_matches?(binary, file_signature) do
     byte_count = byte_size(file_signature)
