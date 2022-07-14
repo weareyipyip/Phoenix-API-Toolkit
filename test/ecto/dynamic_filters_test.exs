@@ -48,8 +48,9 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFiltersTest do
   end
 
   def list_without_standard_filters(filters \\ %{}) do
-    from(user in "users", as: :user)
-    |> apply_filters(filters, fn
+    query = from(user in "users", as: :user)
+
+    Enum.reduce(filters, query, fn
       {:order_by, {field, direction}}, query ->
         order_by(query, [user: user], [{^direction, field(user, ^field)}])
 
@@ -67,14 +68,10 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFiltersTest do
 
   def list_with_standard_filters(filters \\ %{}) do
     from(user in "users", as: :user)
-    |> apply_filters(filters, fn
+    |> standard_filters filters, :user, @filter_definitions, &resolve_binding/2 do
       # Add custom filters first and fallback to standard filters
-      {:group_name, value}, query ->
-        by_group_name(query, value)
-
-      filter, query ->
-        standard_filters(query, filter, :user, @filter_definitions, &resolve_binding/2)
-    end)
+      {:group_name, value}, query -> by_group_name(query, value)
+    end
   end
 
   # # this is a little helper to update the docs
