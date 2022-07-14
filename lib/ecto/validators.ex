@@ -102,7 +102,7 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
   The supported fields should be passed as a list or `MapSet` (which performs better) to `orderables`.
 
   If the change is valid, the original change is replaced with a keyword list of
-  `{:field, :direction}`, which is supported by `PhoenixApiToolkit.Ecto.DynamicFilters.standard_filters/4`.
+  `{:field, :direction}`, which is supported by `PhoenixApiToolkit.Ecto.DynamicFilters.standard_filters/6`.
 
   ## Examples
   For the implementation of `changeset/1`, see `#{__MODULE__}`.
