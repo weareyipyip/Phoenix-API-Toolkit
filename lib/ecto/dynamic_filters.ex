@@ -159,7 +159,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
 
       # unsupported filters raise, but nonexistent order_by fields do not (although Ecto will raise, naturally)
       iex> list_with_standard_filters(%{number_of_arms: 3})
-      ** (CaseClauseError) no case clause matching: {:number_of_arms, 3}
+      ** (RuntimeError) list filter {:number_of_arms, 3} not recognized
       iex> list_with_standard_filters(%{order_by: [:number_of_arms]})
       #Ecto.Query<from u0 in "users", as: :user, order_by: [asc: u0.number_of_arms]>
 
@@ -325,19 +325,6 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
   @typedoc "Format of a filter that can be applied to a query to narrow it down"
   @type filter :: {atom() | String.t(), any()}
 
-  @doc """
-  Applies `filters` to `query` by reducing `filters` using `filter_reductor`.
-  Combine with the custom queries from `Ecto.Query` to write complex
-  filterables. Several standard filters have been implemented in
-  `standard_filters/4`.
-
-  See the module docs `#{__MODULE__}` for details and examples.
-  """
-  @spec apply_filters(Query.t(), map(), (Query.t(), filter -> Query.t())) :: Query.t()
-  def apply_filters(query, filters, filter_reductor) do
-    Enum.reduce(filters, query, filter_reductor)
-  end
-
   @typedoc """
   Definition used to generate a filter for `standard_filters/4`.
 
@@ -420,25 +407,36 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
   - `list_contains_any`: array field must contain any filter value, e.g. `user.roles` contains any of ["admin", "creator"] (equivalent to set intersection). Filter names can be the same as `list_contains` filters.
   - `list_contains_all`: array field must contain all filter values, e.g. `user.roles` contains all of ["admin", "creator"] (equivalent to subset). Filter names can be the same as `list_contains` filters.
   """
+
   @spec standard_filters(
           Query.t(),
           filter,
           atom,
           filter_definitions,
-          (Query.t(), atom() -> Query.t())
+          (Query.t(), atom() -> Query.t()),
+          any()
         ) :: any
   defmacro standard_filters(
              query,
-             filter,
+             filters,
              default_binding,
              filter_definitions,
-             resolve_binding
+             resolve_binding,
+             overrides \\ nil
            )
 
-  defmacro standard_filters(query, filter, def_bnd, filter_definitions, res_binding) do
+  defmacro standard_filters(
+             query,
+             filters,
+             def_bnd,
+             filter_definitions,
+             res_binding,
+             overrides
+           ) do
     # Call Macro.expand/2 in case filter_definitions is a module attribute
     definitions = filter_definitions |> Macro.expand(__CALLER__)
 
+    # create clauses for the eventual case statement (as raw AST!)
     # create clauses for the eventual case statement (as raw AST!)
     clauses =
       []
@@ -447,162 +445,124 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
       |> maybe_support_order_by(definitions, def_bnd, res_binding)
       # filters for equal-to-any-of-the-filters-values matches
       |> add_clause_for_each(definitions[:equal_to_any], def_bnd, fn {filt, bnd, fld}, clauses ->
-        clauses
-        |> add_clause(
+        clauses ++
           quote do
-            {flt, val} when flt in unquote(create_keylist(definitions, filt)) and is_list(val)
-          end,
-          quote do
-            query
-            |> unquote(res_binding).(unquote(bnd))
-            |> where([{^unquote(bnd), bd}], field(bd, unquote(fld)) in ^val)
+            {flt, val}, query
+            when flt in unquote(create_keylist(definitions, filt)) and is_list(val) ->
+              query
+              |> unquote(res_binding).(unquote(bnd))
+              |> where([{^unquote(bnd), bd}], field(bd, unquote(fld)) in ^val)
           end
-        )
       end)
       # filters for equality matches
       |> add_clause_for_each(definitions[:equal_to], def_bnd, fn {filt, bnd, fld}, clauses ->
-        clauses
-        |> add_clause(
+        clauses ++
           quote do
-            {flt, val} when flt in unquote(create_keylist(definitions, filt))
-          end,
-          quote do
-            query
-            |> unquote(res_binding).(unquote(bnd))
-            |> where([{^unquote(bnd), bd}], field(bd, unquote(fld)) == ^val)
+            {flt, val}, query when flt in unquote(create_keylist(definitions, filt)) ->
+              query
+              |> unquote(res_binding).(unquote(bnd))
+              |> where([{^unquote(bnd), bd}], field(bd, unquote(fld)) == ^val)
           end
-        )
       end)
       # filters for prefix searches using ilike
       |> add_clause_for_each(definitions[:string_starts_with], def_bnd, fn {filt, bnd, fld},
                                                                            clauses ->
-        clauses
-        |> add_clause(
+        clauses ++
           quote do
-            {flt, val} when flt in unquote(create_keylist(definitions, filt))
-          end,
-          quote do
-            query
-            |> unquote(res_binding).(unquote(bnd))
-            |> where([{^unquote(bnd), bd}], ilike(field(bd, unquote(fld)), ^(val <> "%")))
+            {flt, val}, query when flt in unquote(create_keylist(definitions, filt)) ->
+              query
+              |> unquote(res_binding).(unquote(bnd))
+              |> where([{^unquote(bnd), bd}], ilike(field(bd, unquote(fld)), ^(val <> "%")))
           end
-        )
       end)
       # filters for searches using ilike
       |> add_clause_for_each(definitions[:string_contains], def_bnd, fn {filt, bnd, fld},
                                                                         clauses ->
-        clauses
-        |> add_clause(
+        clauses ++
           quote do
-            {flt, val} when flt in unquote(create_keylist(definitions, filt))
-          end,
-          quote do
-            query
-            |> unquote(res_binding).(unquote(bnd))
-            |> where([{^unquote(bnd), bd}], ilike(field(bd, unquote(fld)), ^("%" <> val <> "%")))
+            {flt, val}, query when flt in unquote(create_keylist(definitions, filt)) ->
+              query
+              |> unquote(res_binding).(unquote(bnd))
+              |> where(
+                [{^unquote(bnd), bd}],
+                ilike(field(bd, unquote(fld)), ^("%" <> val <> "%"))
+              )
           end
-        )
       end)
       # filters for set intersection matches
       |> add_clause_for_each(definitions[:list_contains_any], def_bnd, fn {filt, bnd, fld},
                                                                           clauses ->
-        add_clause(
-          clauses,
+        clauses ++
           quote do
-            {flt, val} when flt in unquote(create_keylist(definitions, filt)) and is_list(val)
-          end,
-          quote do
-            query
-            |> unquote(res_binding).(unquote(bnd))
-            |> where([{^unquote(bnd), bd}], fragment("? && ?", field(bd, unquote(fld)), ^val))
+            {flt, val}, query
+            when flt in unquote(create_keylist(definitions, filt)) and is_list(val) ->
+              query
+              |> unquote(res_binding).(unquote(bnd))
+              |> where([{^unquote(bnd), bd}], fragment("? && ?", field(bd, unquote(fld)), ^val))
           end
-        )
       end)
       # filters for subset-of matches
       |> add_clause_for_each(definitions[:list_contains_all], def_bnd, fn {filt, bnd, fld},
                                                                           clauses ->
-        add_clause(
-          clauses,
+        clauses ++
           quote do
-            {flt, val} when flt in unquote(create_keylist(definitions, filt)) and is_list(val)
-          end,
-          quote do
-            query
-            |> unquote(res_binding).(unquote(bnd))
-            |> where([{^unquote(bnd), bd}], fragment("? @> ?", field(bd, unquote(fld)), ^val))
+            {flt, val}, query
+            when flt in unquote(create_keylist(definitions, filt)) and is_list(val) ->
+              query
+              |> unquote(res_binding).(unquote(bnd))
+              |> where([{^unquote(bnd), bd}], fragment("? @> ?", field(bd, unquote(fld)), ^val))
           end
-        )
       end)
       # filters for set membership matches
       |> add_clause_for_each(definitions[:list_contains], def_bnd, fn {filt, bnd, fld}, clauses ->
-        add_clause(
-          clauses,
+        clauses ++
           quote do
-            {flt, val} when flt in unquote(create_keylist(definitions, filt))
-          end,
-          quote do
-            query
-            |> unquote(res_binding).(unquote(bnd))
-            |> where([{^unquote(bnd), bd}], fragment("? && ?", field(bd, unquote(fld)), ^[val]))
+            {flt, val}, query when flt in unquote(create_keylist(definitions, filt)) ->
+              query
+              |> unquote(res_binding).(unquote(bnd))
+              |> where([{^unquote(bnd), bd}], fragment("? && ?", field(bd, unquote(fld)), ^[val]))
           end
-        )
       end)
       # filters for smaller-than matches
       |> add_clause_for_each(definitions[:smaller_than], def_bnd, fn {filt, bnd, fld}, clauses ->
-        add_clause(
-          clauses,
+        clauses ++
           quote do
-            {flt, val} when flt in unquote(create_keylist(definitions, filt))
-          end,
-          quote do
-            query
-            |> unquote(res_binding).(unquote(bnd))
-            |> where([{^unquote(bnd), bd}], field(bd, unquote(fld)) < ^val)
+            {flt, val}, query when flt in unquote(create_keylist(definitions, filt)) ->
+              query
+              |> unquote(res_binding).(unquote(bnd))
+              |> where([{^unquote(bnd), bd}], field(bd, unquote(fld)) < ^val)
           end
-        )
       end)
       # filters for greater-than-or-equal-to matches
       |> add_clause_for_each(definitions[:greater_than_or_equal_to], def_bnd, fn {filt, bnd, fld},
                                                                                  clauses ->
-        add_clause(
-          clauses,
+        clauses ++
           quote do
-            {flt, val} when flt in unquote(create_keylist(definitions, filt))
-          end,
-          quote do
-            query
-            |> unquote(res_binding).(unquote(bnd))
-            |> where([{^unquote(bnd), bd}], field(bd, unquote(fld)) >= ^val)
+            {flt, val}, query when flt in unquote(create_keylist(definitions, filt)) ->
+              query
+              |> unquote(res_binding).(unquote(bnd))
+              |> where([{^unquote(bnd), bd}], field(bd, unquote(fld)) >= ^val)
           end
-        )
       end)
 
-    # create the case statement based on the clauses
-    quote generated: true do
-      query = unquote(query)
+    overrides =
+      case overrides do
+        [do: {:__block__, _, overrides}] -> overrides
+        [do: overrides] -> overrides
+        _ -> []
+      end
 
-      case unquote(filter), do: unquote(clauses)
-    end
-  end
+    clauses =
+      clauses ++
+        overrides ++
+        quote do
+          other_filter, _query -> raise "list filter #{inspect(other_filter)} not recognized"
+        end
 
-  @doc """
-  Same as `standard_filters/5` but does not support dynamically resolving named bindings.
-  """
-  @spec standard_filters(
-          Query.t(),
-          filter,
-          atom,
-          filter_definitions
-        ) :: any
-  defmacro standard_filters(query, filter, default_binding, filter_definitions) do
+    function_statement = {:fn, [], clauses}
+
     quote do
-      standard_filters(
-        unquote(query),
-        unquote(filter),
-        unquote(default_binding),
-        unquote(filter_definitions),
-        fn q, _ -> q end
-      )
+      Enum.reduce(unquote(filters), unquote(query), unquote(function_statement))
     end
   end
 
@@ -670,11 +630,11 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
   # adds support for a limit-filter if enabled by the caller
   defp maybe_support_limit(clauses, definitions) do
     if definitions[:limit] do
-      add_clause(
-        clauses,
-        quote(do: {flt, val} when flt in unquote(create_keylist(definitions, :limit))),
-        quote(do: limit(query, ^val))
-      )
+      clauses ++
+        quote do
+          {flt, val}, query when flt in unquote(create_keylist(definitions, :limit)) ->
+            limit(query, ^val)
+        end
     else
       clauses
     end
@@ -683,11 +643,11 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
   # adds support for an offset-filter if enabled by the caller
   defp maybe_support_offset(clauses, definitions) do
     if definitions[:offset] do
-      add_clause(
-        clauses,
-        quote(do: {flt, val} when flt in unquote(create_keylist(definitions, :offset))),
-        quote(do: offset(query, ^val))
-      )
+      clauses ++
+        quote do
+          {flt, val}, query when flt in unquote(create_keylist(definitions, :offset)) ->
+            offset(query, ^val)
+        end
     else
       clauses
     end
@@ -703,33 +663,27 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
         |> Enum.map(&parse_filter_definition_key(&1, def_bnd))
         |> Enum.map(fn {filter_name, bnd, fld} -> {filter_name, {bnd, fld}} end)
 
-      add_clause(
-        clauses,
+      clauses ++
         quote do
-          {flt, val} when flt in unquote(create_keylist(definitions, :order_by)) and is_list(val)
-        end,
-        quote do
-          resolve_binding = unquote(resolve_binding)
+          {flt, val}, query
+          when flt in unquote(create_keylist(definitions, :order_by)) and is_list(val) ->
+            resolve_binding = unquote(resolve_binding)
 
-          Enum.reduce(val, query, fn elem, query ->
-            {dir, bnd, fld} = Internal.parse_order_by(elem, unquote(def_bnd), unquote(aliases))
+            Enum.reduce(val, query, fn elem, query ->
+              {dir, bnd, fld} = Internal.parse_order_by(elem, unquote(def_bnd), unquote(aliases))
 
-            if is_function(fld) do
-              query |> resolve_binding.(bnd) |> fld.(dir)
-            else
-              query |> resolve_binding.(bnd) |> order_by([{^bnd, bd}], [{^dir, field(bd, ^fld)}])
-            end
-          end)
+              if is_function(fld) do
+                query |> resolve_binding.(bnd) |> fld.(dir)
+              else
+                query
+                |> resolve_binding.(bnd)
+                |> order_by([{^bnd, bd}], [{^dir, field(bd, ^fld)}])
+              end
+            end)
         end
-      )
     else
       clauses
     end
-  end
-
-  # add a single clause to the clauses list
-  defp add_clause(clauses, clause, block) do
-    clauses ++ [{:->, [], [[clause], block]}]
   end
 
   # add a new clause to the clauses list for each filter definition in the enumerable

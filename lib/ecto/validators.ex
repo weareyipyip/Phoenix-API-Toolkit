@@ -32,24 +32,6 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
   ## Examples
   For the implementation of `changeset/1`, see `#{__MODULE__}`.
 
-      iex> changeset() |> put_change_if_unchanged(:first_name, "Peter")
-      #Ecto.Changeset<action: nil, changes: %{first_name: "Peter"}, errors: [], data: %{}, valid?: true>
-
-      iex> changeset(%{first_name: "Jason"}) |> put_change_if_unchanged(:first_name, "Peter")
-      #Ecto.Changeset<action: nil, changes: %{first_name: "Jason"}, errors: [], data: %{}, valid?: true>
-  """
-  @spec put_change_if_unchanged(Changeset.t(), atom(), any()) :: Changeset.t()
-  @deprecated "renamed to default_change/3"
-  def put_change_if_unchanged(changeset, field, value)
-  def put_change_if_unchanged(cs, fld, val), do: default_change(cs, fld, val)
-
-  @doc """
-  If the changeset does not contain a change for `field` - even if the field already
-  has a value in the changeset data - set it to `change`. Useful for setting default changes.
-
-  ## Examples
-  For the implementation of `changeset/1`, see `#{__MODULE__}`.
-
       iex> changeset() |> default_change(:first_name, "Peter")
       #Ecto.Changeset<action: nil, changes: %{first_name: "Peter"}, errors: [], data: %{}, valid?: true>
 
