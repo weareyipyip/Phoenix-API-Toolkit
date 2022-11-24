@@ -349,6 +349,8 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
           equal_to: [filter_definition()],
           equal_to_any: [filter_definition()],
           smaller_than: [filter_definition()],
+          smaller_than_or_equal_to: [filter_definition()],
+          greater_than: [filter_definition()],
           greater_than_or_equal_to: [filter_definition()],
           string_starts_with: [filter_definition()],
           string_contains: [filter_definition()],
@@ -366,6 +368,8 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
           equal_to: [filter_definition()],
           equal_to_any: [filter_definition()],
           smaller_than: [filter_definition()],
+          smaller_than_or_equal_to: [filter_definition()],
+          greater_than: [filter_definition()],
           greater_than_or_equal_to: [filter_definition()],
           string_starts_with: [filter_definition()],
           string_contains: [filter_definition()],
@@ -400,6 +404,8 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
   - `equal_to`: field must be equal to filter.
   - `equal_to_any`: field must be equal to any value of filter, e.g. `user.id in [1, 2, 3]`. Filter names can be the same as `equal_to` filters.
   - `smaller_than`: field must be smaller than filter value, e.g. `user.score < value`
+  - `smaller_than_or_equal_to`: field must be smaller than or equal to filter value, e.g. `user.score <= value`
+  - `greater_than`: field must be greater than filter value, e.g. `user.score > value`
   - `greater_than_or_equal_to`: field must be greater than or equal to filter value, e.g. `user.score >= value`
   - `string_starts_with`: string field must start with case-insensitive string prefix, e.g. `user.name` starts with "dav"
   - `string_contains`: string field must contain case-insensitive string, e.g. `user.name` contains "av"
@@ -533,6 +539,27 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
               |> where([{^unquote(bnd), bd}], field(bd, unquote(fld)) < ^val)
           end
       end)
+      # filters for smaller-than-or-equal-to matches
+      |> add_clause_for_each(definitions[:smaller_than_or_equal_to], def_bnd, fn {filt, bnd, fld},
+                                                                                 clauses ->
+        clauses ++
+          quote do
+            {flt, val}, query when flt in unquote(create_keylist(definitions, filt)) ->
+              query
+              |> unquote(res_binding).(unquote(bnd))
+              |> where([{^unquote(bnd), bd}], field(bd, unquote(fld)) <= ^val)
+          end
+      end)
+      # filters for greater-than matches
+      |> add_clause_for_each(definitions[:greater_than], def_bnd, fn {filt, bnd, fld}, clauses ->
+        clauses ++
+          quote do
+            {flt, val}, query when flt in unquote(create_keylist(definitions, filt)) ->
+              query
+              |> unquote(res_binding).(unquote(bnd))
+              |> where([{^unquote(bnd), bd}], field(bd, unquote(fld)) > ^val)
+          end
+      end)
       # filters for greater-than-or-equal-to matches
       |> add_clause_for_each(definitions[:greater_than_or_equal_to], def_bnd, fn {filt, bnd, fld},
                                                                                  clauses ->
@@ -578,6 +605,8 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
     equal_to = get_filters(:equal_to, filters, extras)
     equal_to_any = get_filters(:equal_to_any, filters, extras)
     smaller_than = get_filters(:smaller_than, filters, extras)
+    smaller_than_or_equal_to = get_filters(:smaller_than_or_equal_to, filters, extras)
+    greater_than = get_filters(:greater_than, filters, extras)
     greater_than_or_equal_to = get_filters(:greater_than_or_equal_to, filters, extras)
     string_starts_with = get_filters(:string_starts_with, filters, extras)
     string_contains = get_filters(:string_contains, filters, extras)
@@ -590,6 +619,8 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
       equal_to_docs(equal_to) <>
       equal_to_any_docs(equal_to_any) <>
       smaller_than_docs(smaller_than) <>
+      smaller_than_or_equal_to_docs(smaller_than_or_equal_to) <>
+      greater_than_docs(greater_than) <>
       greater_than_or_equal_to_docs(greater_than_or_equal_to) <>
       string_starts_with_docs(string_starts_with) <>
       string_contains_docs(string_contains) <>
@@ -846,6 +877,46 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
     Filter name | Must be smaller than
     --- | ---
     #{smaller_than |> to_table()}
+
+    """
+  end
+
+  defp smaller_than_or_equal_to_docs([]), do: ""
+
+  defp smaller_than_or_equal_to_docs(smaller_than_or_equal_to) do
+    """
+    ## Smaller-than-or-equal-to filters
+
+    The field's value must be smaller than or equal to the filter's value.
+    The equivalent Ecto code is
+    ```
+    where(query, [binding: bd], bd.field <= ^filter_value)
+    ```
+    The following filter names are supported:
+
+    Filter name | Must be smaller than or equal to
+    --- | ---
+    #{smaller_than_or_equal_to |> to_table()}
+
+    """
+  end
+
+  defp greater_than_docs([]), do: ""
+
+  defp greater_than_docs(greater_than) do
+    """
+    ## Greater-than filters
+
+    The field's value must be greater than the filter's value.
+    The equivalent Ecto code is
+    ```
+    where(query, [binding: bd], bd.field > ^filter_value)
+    ```
+    The following filter names are supported:
+
+    Filter name | Must be greater than
+    --- | ---
+    #{greater_than |> to_table()}
 
     """
   end
