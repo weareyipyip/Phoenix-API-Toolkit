@@ -25,8 +25,8 @@ jobs:
           file_path: README.md
       - uses: erlef/setup-elixir@v1
         with:
-          otp-version: 22.x
-          elixir-version: 1.11.x
+          otp-version: 25.x
+          elixir-version: 1.14.x
       - name: Install dependencies
         run: mix do local.hex --force, local.rebar --force, deps.get
       - name: Check code formatting
