@@ -14,13 +14,13 @@ jobs:
     name: Elixir ${{matrix.elixir}} (OTP ${{matrix.otp}})
     strategy:
       matrix:
-        otp: [22.x]
-        elixir: [1.7.x, 1.10.x, 1.12.x]
-        include:
-          - otp: 24.x
-            elixir: 1.12.x
-          - otp: 21.x
-            elixir: 1.11.x
+        otp: [24.x, 25.x]
+        elixir: [1.12.x, 1.13.x, 1.14.x]
+        exclude:
+          - elixir: 1.12.x
+            otp: 25.x
+          - elixir: 1.13.x
+            otp: 25.x
     env:
       MIX_ENV: test
     steps:
