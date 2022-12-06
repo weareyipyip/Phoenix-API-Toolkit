@@ -25,6 +25,9 @@ defmodule PhoenixApiToolkit.MixProject do
       ],
       dialyzer: [
         plt_add_apps: [:jose]
+      ],
+      test_coverage: [
+        summary: [threshold: 85]
       ]
     ]
   end
