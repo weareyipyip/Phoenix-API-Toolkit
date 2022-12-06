@@ -23,7 +23,7 @@ defmodule PhoenixApiToolkit.Ecto.Validators do
   import Ecto.Changeset
   require Logger
 
-  @order_by_format ~r/^(asc|desc|asc_nulls_last|desc_nulls_last|asc_nulls_first|desc_nulls_first):(\w{1,20})$/
+  @order_by_format ~r/^(asc|desc|asc_nulls_last|desc_nulls_last|asc_nulls_first|desc_nulls_first):(\w+)$/
 
   @doc """
   If the changeset does not contain a change for `field` - even if the field already
