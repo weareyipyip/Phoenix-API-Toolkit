@@ -15,8 +15,10 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
       require Ecto.Query
 
       def list_without_standard_filters(filters \\\\ %{}) do
-        from(user in "users", as: :user)
-        |> apply_filters(filters, fn
+        base_query = from(user in "users", as: :user)
+
+        filters
+        |> Enum.reduce(base_query, fn
           {:order_by, {field, direction}}, query ->
             order_by(query, [user: user], [{^direction, field(user, ^field)}])
 
@@ -115,13 +117,9 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
       \"\"\"
       def list_with_standard_filters(filters \\\\ %{}) do
         from(user in "users", as: :user)
-        |> apply_filters(filters, fn
-          # Add custom filters first and fallback to standard filters
-          {:group_name, value}, query ->
-            by_group_name(query, value)
-
-          filter, query ->
-            standard_filters(query, filter, :user, @filter_definitions, &resolve_binding/2)
+        |> standard_filters filters, :user, @filter_definitions, &resolve_binding/2 do
+          # Add custom filters first and fall back to standard filters
+          {:group_name, value}, query -> by_group_name(query, value)
         end)
       end
 
