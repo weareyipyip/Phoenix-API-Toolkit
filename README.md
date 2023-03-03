@@ -116,3 +116,9 @@ end
 ## Documentation
 
 Documentation is available on [HexDocs](https://hexdocs.pm/phoenix_api_toolkit/)
+
+## Copyright and License
+
+Copyright (c) 2023, YipYip B.V.
+
+The Phoenix API Toolkit source code is licensed under the [Apache-2.0 License](LICENSE.md)
