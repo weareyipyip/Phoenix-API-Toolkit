@@ -79,6 +79,9 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
         greater_than_or_equal_to: [
           inserted_at_or_after: :inserted_at,
           balance_gte: :balance
+        ],
+        custom: [
+          group_name_alternative: &__MODULE__.by_group_name/2
         ]
       ]
 
@@ -154,6 +157,10 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
       # complex custom filters can be combined with the standard filters
       iex> list_with_standard_filters(%{group_name: "admins", balance_gte: 50.00})
       #Ecto.Query<from u0 in "users", as: :user, where: u0.balance >= ^50.0, where: u0.group_name == ^"admins">
+
+      # a custom filter function may be passed into :custom as well
+      iex> list_with_standard_filters(%{group_name_alternative: "admins"})
+      #Ecto.Query<from u0 in "users", as: :user, where: u0.group_name == ^"admins">
 
       # unsupported filters raise, but nonexistent order_by fields do not (although Ecto will raise, naturally)
       iex> list_with_standard_filters(%{number_of_arms: 3})
@@ -569,6 +576,14 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
               |> where([{^unquote(bnd), bd}], field(bd, unquote(fld)) >= ^val)
           end
       end)
+      # custom filters
+      |> add_clause_for_each(definitions[:custom], def_bnd, fn {filt, _bnd, func}, clauses ->
+        clauses ++
+          quote do
+            {flt, val}, query when flt in unquote(create_keylist(definitions, filt)) ->
+              unquote(func).(query, val)
+          end
+      end)
 
     overrides =
       case overrides do
@@ -648,8 +663,8 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
     {filter, binding, field}
   end
 
-  defp parse_filter_definition_key({filter, field}, default_binding) do
-    {filter, default_binding, field}
+  defp parse_filter_definition_key({filter, field_or_func}, default_binding) do
+    {filter, default_binding, field_or_func}
   end
 
   defp parse_filter_definition_key(filter, default_binding) do

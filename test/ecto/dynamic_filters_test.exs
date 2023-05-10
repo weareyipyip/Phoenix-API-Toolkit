@@ -35,6 +35,9 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFiltersTest do
     greater_than_or_equal_to: [
       inserted_at_or_after: :inserted_at,
       balance_gte: :balance
+    ],
+    custom: [
+      group_name_alternative: &__MODULE__.by_group_name/2
     ]
   ]
 
@@ -47,7 +50,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFiltersTest do
       query
     else
       case named_binding do
-        :role -> join(query, :left, [user: user], role in "roles", as: :role)
+        :role -> join(query, :left, [user: user], role in "roles", on: true, as: :role)
         _ -> query
       end
     end

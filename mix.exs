@@ -44,7 +44,6 @@ defmodule PhoenixApiToolkit.MixProject do
     [
       # meta / dev dependencies
       {:ex_doc, "~> 0.21", only: [:dev, :test], runtime: false},
-      {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
 
       # application dependencies
       {:ecto, "~> 3.0"},
