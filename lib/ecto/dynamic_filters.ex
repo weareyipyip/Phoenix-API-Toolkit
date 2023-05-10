@@ -80,7 +80,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
           inserted_at_or_after: :inserted_at,
           balance_gte: :balance
         ],
-        custom: [
+        filter_by: [
           group_name_alternative: &__MODULE__.by_group_name/2
         ]
       ]
@@ -158,7 +158,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
       iex> list_with_standard_filters(%{group_name: "admins", balance_gte: 50.00})
       #Ecto.Query<from u0 in "users", as: :user, where: u0.balance >= ^50.0, where: u0.group_name == ^"admins">
 
-      # a custom filter function may be passed into :custom as well
+      # a custom filter function may be passed into :filter_by as well
       iex> list_with_standard_filters(%{group_name_alternative: "admins"})
       #Ecto.Query<from u0 in "users", as: :user, where: u0.group_name == ^"admins">
 
@@ -320,7 +320,12 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
   >
   > The `offset` filter skips a number of rows in the result set and may be used for pagination.
   >
+  > ## Filter-by-function filters
   >
+  > The filter applies a function to the query.
+  >
+  > The following filter names are supported:
+  > * `group_name_alternative` (opague)
   """
   alias PhoenixApiToolkit.Internal
   alias Ecto.Query
@@ -417,6 +422,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
   - `list_contains`: array field must contain filter value, e.g. `"admin" in user.roles` (equivalent to set membership)
   - `list_contains_any`: array field must contain any filter value, e.g. `user.roles` contains any of ["admin", "creator"] (equivalent to set intersection). Filter names can be the same as `list_contains` filters.
   - `list_contains_all`: array field must contain all filter values, e.g. `user.roles` contains all of ["admin", "creator"] (equivalent to subset). Filter names can be the same as `list_contains` filters.
+  - `filter_by`: filter with a custom function
   """
 
   @spec standard_filters(
@@ -576,8 +582,8 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
               |> where([{^unquote(bnd), bd}], field(bd, unquote(fld)) >= ^val)
           end
       end)
-      # custom filters
-      |> add_clause_for_each(definitions[:custom], def_bnd, fn {filt, _bnd, func}, clauses ->
+      # filter_by function filters
+      |> add_clause_for_each(definitions[:filter_by], def_bnd, fn {filt, _bnd, func}, clauses ->
         clauses ++
           quote do
             {flt, val}, query when flt in unquote(create_keylist(definitions, filt)) ->
@@ -641,7 +647,8 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
       list_contains_any_docs(list_contains_any) <>
       list_contains_all_docs(list_contains_all) <>
       order_by_docs(filters[:order_by], order_by_aliases) <>
-      limit_docs(filters[:limit]) <> offset_docs(filters[:offset])
+      limit_docs(filters[:limit]) <>
+      offset_docs(filters[:offset]) <> filter_by_docs(filters[:filter_by])
   end
 
   ############
@@ -1035,6 +1042,20 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
     ```
     The following filter names are supported:
     #{string_contains |> to_list()}
+
+    """
+  end
+
+  defp filter_by_docs([]), do: ""
+
+  defp filter_by_docs(filter_by) do
+    """
+    ## Filter-by-function filters
+
+    The filter applies a function to the query.
+
+    The following filter names are supported:
+    #{filter_by |> to_list()}
 
     """
   end
