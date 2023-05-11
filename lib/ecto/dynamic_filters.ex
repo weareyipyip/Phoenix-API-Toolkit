@@ -648,7 +648,8 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
       list_contains_all_docs(list_contains_all) <>
       order_by_docs(filters[:order_by], order_by_aliases) <>
       limit_docs(filters[:limit]) <>
-      offset_docs(filters[:offset]) <> filter_by_docs(filters[:filter_by])
+      offset_docs(filters[:offset]) <>
+      filter_by_docs(filters[:filter_by])
   end
 
   ############
@@ -1046,9 +1047,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
     """
   end
 
-  defp filter_by_docs([]), do: ""
-
-  defp filter_by_docs(filter_by) do
+  defp filter_by_docs(filter_by) when is_list(filter_by) and length(filter_by) > 0 do
     """
     ## Filter-by-function filters
 
@@ -1059,6 +1058,8 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
 
     """
   end
+
+  defp filter_by_docs(_), do: ""
 
   defp to_list(list) do
     Enum.reduce(list, "", fn
