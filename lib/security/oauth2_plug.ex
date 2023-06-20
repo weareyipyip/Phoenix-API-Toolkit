@@ -160,7 +160,7 @@ if Code.ensure_loaded?(:jose) do
     end
 
     defp verify_jwt(raw_jwt, _keyset, _alg_whitelist, true) do
-      Logger.warn("Token signature NOT verified! For dev/test use only!")
+      Logger.warning("Token signature NOT verified! For dev/test use only!")
       {:ok, jwt} = peek_payload(raw_jwt)
       {true, jwt, "signature"}
     end
