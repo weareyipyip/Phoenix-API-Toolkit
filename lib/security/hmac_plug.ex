@@ -96,7 +96,7 @@ defmodule PhoenixApiToolkit.Security.HmacPlug do
     with hmac <- parse_auth_header(conn),
          body = CacheBodyReader.get_raw_request_body(conn) || "",
          message_hmac = Internal.hmac(hash_algorithm, hmac_secret, body) |> Base.encode64(),
-         {:hmac_matches, true} <- {:hmac_matches, hmac == message_hmac},
+         {:hmac_matches, true} <- {:hmac_matches, Plug.Crypto.secure_compare(hmac, message_hmac)},
          :ok <- verify_method(conn),
          :ok <- verify_path(conn),
          :ok <- verify_timestamp(conn, max_age) do
