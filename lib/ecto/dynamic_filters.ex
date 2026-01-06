@@ -616,8 +616,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
         |> distinct(:id)
         |> exclude(:preload)
 
-      from [p] in unquote(query),
-        join: sel in subquery(fq), on: sel.id == p.id
+      from([p] in unquote(query), join: sel in subquery(fq), on: sel.id == p.id)
     end
   end
 
