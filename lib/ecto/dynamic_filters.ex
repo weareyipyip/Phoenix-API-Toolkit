@@ -123,7 +123,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
         |> standard_filters filters, :user, @filter_definitions, &resolve_binding/2 do
           # Add custom filters first and fall back to standard filters
           {:group_name, value}, query -> by_group_name(query, value)
-        end)
+        end
       end
 
       # filtering is optional
