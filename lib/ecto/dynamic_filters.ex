@@ -608,7 +608,16 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
     function_statement = {:fn, [], clauses}
 
     quote do
-      Enum.reduce(unquote(filters), unquote(query), unquote(function_statement))
+      # By filtering separately from the retrieval of the rows,
+      # we avoid limit and offset from being affected by additional rows created by joins
+
+      fq =
+        Enum.reduce(unquote(filters), unquote(query), unquote(function_statement))
+        |> distinct(:id)
+        |> exclude(:preload)
+
+      from [p] in unquote(query),
+        join: sel in subquery(fq), on: sel.id == p.id
     end
   end
 
