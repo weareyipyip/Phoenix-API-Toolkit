@@ -132,7 +132,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
 
       # let's do some filtering
       iex> list_with_standard_filters(%{username: "Peter", balance_lt: 50.00, address: "sesame street"})
-      #Ecto.Query<from u0 in "users", as: :user, where: u0.address == ^"sesame street", where: u0.username == ^"Peter", where: u0.balance < ^50.0>
+      #Ecto.Query<from u0 in "users", as: :user, where: u0.address == ^"sesame street", where: u0.balance < ^50.0, where: u0.username == ^"Peter">
 
       # associations can be dynamically joined into the query, only when necessary
       iex> list_with_standard_filters(%{role_name: "admin"})
@@ -187,7 +187,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
       iex> list_with_standard_filters(%{roles: "admin"})
       #Ecto.Query<from u0 in "users", as: :user, where: fragment("? && ?", u0.roles, ^["admin"])>
       iex> list_with_standard_filters(%{roles: ["admin", "superadmin"], all_roles: ["creator", "user"]})
-      #Ecto.Query<from u0 in "users", as: :user, where: fragment("? && ?", u0.roles, ^["admin", "superadmin"]), where: fragment("? @> ?", u0.roles, ^["creator", "user"])>
+      #Ecto.Query<from u0 in "users", as: :user, where: fragment("? @> ?", u0.roles, ^["creator", "user"]), where: fragment("? && ?", u0.roles, ^["admin", "superadmin"])>
 
       # you can order by multiple fields and specify bindings
       iex> list_with_standard_filters(%{"balance" => 12, "order_by" => [asc: {:user, :username}, desc: :role]})
