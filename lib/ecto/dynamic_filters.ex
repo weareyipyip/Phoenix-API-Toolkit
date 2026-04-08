@@ -626,13 +626,13 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
     end
   end
 
-  def maybe_use_subquery(fq, query) when fq.joins != [] and (fq.limit != nil or fq.offset != nil) do
+  def maybe_use_subquery(fq, query)
+      when fq.joins != [] and (fq.limit != nil or fq.offset != nil) do
     fq = fq |> distinct(:id) |> exclude(:preload)
     from([p] in query, inner_join: sel in subquery(fq), on: sel.id == p.id)
   end
 
   def maybe_use_subquery(fq, _query), do: fq
-
 
   @doc """
   Generate a markdown docstring from filter definitions, as passed to `standard_filters/6`,
