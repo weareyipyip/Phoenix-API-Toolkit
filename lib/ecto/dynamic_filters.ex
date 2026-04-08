@@ -123,7 +123,7 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
         |> standard_filters filters, :user, @filter_definitions, &resolve_binding/2 do
           # Add custom filters first and fall back to standard filters
           {:group_name, value}, query -> by_group_name(query, value)
-        end)
+        end
       end
 
       # filtering is optional
@@ -141,6 +141,17 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
       # limit, offset, and order_by are supported
       iex> list_with_standard_filters(%{"limit" => 10, offset: 1, order_by: [desc: :address]})
       #Ecto.Query<from u0 in "users", as: :user, order_by: [desc: u0.address], limit: ^10, offset: ^1>
+
+      # when joins and limit/offset are combined, a subquery is used to prevent row inflation
+      iex> list_with_standard_filters(%{role_name: "admin", limit: 10})
+      #Ecto.Query<from u0 in "users", as: :user, join: u1 in subquery(from u0 in "users",
+        as: :user,
+        left_join: r1 in "roles",
+        as: :role,
+        on: true,
+        where: r1.name == ^"admin",
+        limit: ^10,
+        distinct: [asc: u0.id]), on: u1.id == u0.id>
 
       # order_by can use association fields as well, which are dynamically joined in that case
       iex> list_with_standard_filters(%{order_by: [asc: {:role, :name}]})
@@ -608,9 +619,20 @@ defmodule PhoenixApiToolkit.Ecto.DynamicFilters do
     function_statement = {:fn, [], clauses}
 
     quote do
-      Enum.reduce(unquote(filters), unquote(query), unquote(function_statement))
+      unquoted_query = unquote(query)
+      fq = Enum.reduce(unquote(filters), unquoted_query, unquote(function_statement))
+
+      PhoenixApiToolkit.Ecto.DynamicFilters.maybe_use_subquery(fq, unquoted_query)
     end
   end
+
+  def maybe_use_subquery(fq, query)
+      when fq.joins != [] and (fq.limit != nil or fq.offset != nil) do
+    fq = fq |> distinct(:id) |> exclude(:preload)
+    from([p] in query, inner_join: sel in subquery(fq), on: sel.id == p.id)
+  end
+
+  def maybe_use_subquery(fq, _query), do: fq
 
   @doc """
   Generate a markdown docstring from filter definitions, as passed to `standard_filters/6`,
